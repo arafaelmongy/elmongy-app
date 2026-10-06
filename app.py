@@ -1,7 +1,6 @@
 import os
 import psycopg
 import flet as ft
-import urllib.parse
 
 # --- 1. إعداد قاعدة البيانات السحابية (Supabase) ---
 DB_URL = os.environ.get(
@@ -381,19 +380,33 @@ def main(page: ft.Page):
 
         def export_pdf_direct(e):
             try:
-                # إنشاء تقرير نصي منسق بالكامل يدعم العربية بشكل كامل ويفتح في المتصفح للطباعة أو الحفظ كـ PDF
-                report_content = f"--- {title_text} ---\n\n"
+                report_text = f"=== {title_text} ===\n\n"
                 for r in rows_data:
                     p_name, p_nick, amount, event_n, notes = r
-                    report_content += f"الاسم: {p_name} | الشهرة: {p_nick or '-'} | المبلغ: {amount} ج.م | المناسبة: {event_n or '-'}\n"
+                    report_text += f"• الاسم: {p_name} | الشهرة: {p_nick or '-'} | المبلغ: {amount:,.0f} ج.م | المناسبة: {event_n or '-'}\n"
 
-                encoded_text = urllib.parse.quote(report_content)
-                data_url = f"data:text/plain;charset=utf-8,{encoded_text}"
-                
-                page.launch_url(data_url)
-                page.open(ft.SnackBar(ft.Text("تم فتح تقرير البيانات بنجاح، يمكنك حفظه أو طباعته كـ PDF! 📄"), bgcolor=ft.Colors.GREEN_600))
+                txt_report_box = ft.TextField(
+                    value=report_text,
+                    multiline=True,
+                    read_only=True,
+                    min_lines=10,
+                    max_lines=15,
+                    text_size=14
+                )
+
+                dlg_report = ft.AlertDialog(
+                    title=ft.Text("كشف الحساب الجاهز للنسخ أو الطباعة"),
+                    content=ft.Column([
+                        ft.Text("يمكنك تحديد النص أدناه ونسخه أو طباعته بكل سهولة:", size=13, color=ft.Colors.GREY_700),
+                        txt_report_box
+                    ], tight=True, width=500),
+                    actions=[
+                        ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_report))
+                    ]
+                )
+                page.open(dlg_report)
             except Exception as ex:
-                page.open(ft.SnackBar(ft.Text(f"خطأ أثناء تجهيز التقرير: {ex}"), bgcolor=ft.Colors.RED_400))
+                page.open(ft.SnackBar(ft.Text(f"خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
 
         page.views.clear()
         page.views.append(
@@ -405,7 +418,7 @@ def main(page: ft.Page):
                         padding=15,
                         content=ft.Column([
                             ft.Row([
-                                ft.ElevatedButton("تحميل وحفظ كشف PDF", icon=ft.icons.DOWNLOAD, on_click=export_pdf_direct, bgcolor=ft.Colors.RED_800, color=ft.Colors.WHITE),
+                                ft.ElevatedButton("عرض كشف الحساب (طباعة/نسخ)", icon=ft.icons.PRINT, on_click=export_pdf_direct, bgcolor=ft.Colors.RED_800, color=ft.Colors.WHITE),
                                 ft.ElevatedButton("رجوع", icon=ft.icons.ARROW_BACK, on_click=lambda e: show_main_dashboard(), bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
                             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             ft.Divider(),
