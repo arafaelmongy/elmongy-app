@@ -52,7 +52,7 @@ def init_db():
 init_db()
 
 def main(page: ft.Page):
-    page.title = "برنامج النقطة والواجب - نظام الصلاحيات"
+    page.title = "Elmongy"
     page.rtl = True
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
@@ -97,7 +97,7 @@ def main(page: ft.Page):
                 padding=30,
                 content=ft.Column([
                     ft.Icon(ft.icons.LOCK_PERSON, size=50, color=ft.Colors.INDIGO_700),
-                    ft.Text("تسجيل الدخول للنظام", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900),
+                    ft.Text("ELmongy", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900),
                     ft.Divider(color=ft.Colors.INDIGO_100),
                     txt_user,
                     txt_pass,
@@ -186,7 +186,7 @@ def main(page: ft.Page):
         is_read_only = (user_role == "read_only")
 
         btn_add_in = ft.ElevatedButton(
-            "إضافة نقطة (وارد)",
+            "إضافة وارد",
             icon=ft.icons.ADD_CIRCLE,
             bgcolor=ft.Colors.GREEN_700,
             color=ft.Colors.WHITE,
@@ -208,7 +208,7 @@ def main(page: ft.Page):
         )
 
         btn_list_in = ft.ElevatedButton(
-            "حصر أسماء النقطة الواردة",
+            "حصر الواردة",
             icon=ft.icons.LIST_ALT,
             bgcolor=ft.Colors.TEAL_700,
             color=ft.Colors.WHITE,
@@ -228,7 +228,7 @@ def main(page: ft.Page):
         )
 
         btn_search = ft.ElevatedButton(
-            "بحث وكشف الحسابات",
+            "بحث بالاسم",
             icon=ft.icons.SEARCH,
             bgcolor=ft.Colors.INDIGO_700,
             color=ft.Colors.WHITE,
@@ -241,7 +241,7 @@ def main(page: ft.Page):
 
         if user_role == "admin" or user_role == "manage_users":
             btn_users = ft.ElevatedButton(
-                "إدارة المستخدمين والصلاحيات",
+                "إدارة المستخدمين",
                 icon=ft.icons.ADMIN_PANEL_SETTINGS,
                 bgcolor=ft.Colors.AMBER_800,
                 color=ft.Colors.WHITE,
@@ -270,7 +270,7 @@ def main(page: ft.Page):
         update_totals()
 
     def show_add_transaction_page(t_type):
-        title_text = "إضافة نقطة (واردة)" if t_type == "IN" else "إضافة صادر"
+        title_text = "إضافة الواردة" if t_type == "IN" else "إضافة صادر"
         
         txt_name = ft.TextField(label="الاسم الكامل", filled=True, border_radius=10, prefix_icon=ft.icons.PERSON)
         txt_nickname = ft.TextField(label="اسم الشهرة", filled=True, border_radius=10, prefix_icon=ft.icons.TAG)
@@ -337,7 +337,7 @@ def main(page: ft.Page):
         page.update()
 
     def show_report_page(t_type):
-        title_text = "حصر أسماء النقطة الواردة" if t_type == "IN" else "حصر الصادر"
+        title_text = "حصر الواردة" if t_type == "IN" else "حصر الصادر"
         report_list = ft.ListView(expand=True, spacing=10)
         rows_data = []
 
@@ -446,7 +446,7 @@ def main(page: ft.Page):
         page.update()
 
     def show_search_page():
-        txt_search = ft.TextField(label="اكتب اسم الشخص للبحث...", filled=True, border_radius=10, prefix_icon=ft.icons.SEARCH)
+        txt_search = ft.TextField(label=" ...", filled=True, border_radius=10, prefix_icon=ft.icons.SEARCH)
         results_col = ft.ListView(expand=True, spacing=10)
 
         def execute_search(e):
