@@ -384,15 +384,21 @@ def main(page: ft.Page):
             try:
                 pdf = FPDF()
                 pdf.add_page()
-                # استخدام خط افتراضي يدعم الحروف أو كتابة عناوين واضحة
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(200, 10, txt=title_text, ln=True, align="C")
+                pdf.set_font("Arial", "B", 12)
+                
+                # استخدام عناوين إنجليزية آمنة لتفادي أخطاء الترميز
+                pdf.cell(200, 10, txt="Financial Report - Elmongy App", ln=True, align="C")
                 pdf.ln(10)
                 
-                pdf.set_font("Arial", "", 11)
+                pdf.set_font("Arial", "", 10)
                 for r in rows_data:
                     p_name, p_nick, amount, event_n, notes = r
-                    line_text = f"Name: {p_name} | Nickname: {p_nick or '-'} | Amount: {amount} LE | Event: {event_n or '-'}"
+                    # تنظيف النصوص العربية وتحويلها لتفادي خطأ latin-1 أو استبدالها بترميز آمن
+                    safe_name = str(p_name).encode('latin-1', 'replace').decode('latin-1')
+                    safe_nick = str(p_nick or '-').encode('latin-1', 'replace').decode('latin-1')
+                    safe_event = str(event_n or '-').encode('latin-1', 'replace').decode('latin-1')
+                    
+                    line_text = f"Name: {safe_name} | Nick: {safe_nick} | Amount: {amount} LE | Event: {safe_event}"
                     pdf.cell(200, 8, txt=line_text, ln=True)
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
@@ -552,10 +558,6 @@ def main(page: ft.Page):
                         users = cursor.fetchall()
 
                 for u_id, uname, urole, upass in users:
-                    
-                    def update_user_click(uid, u_box, r_box):
-                        return lambda ev: save_user_changes(uid, u_box.value, r_box.value)
-
                     u_pass_field = ft.TextField(value=upass, label="كلمة المرور الجديدة", password=True, can_reveal_password=True, dense=True)
                     r_dropdown = ft.Dropdown(
                         value=urole,
