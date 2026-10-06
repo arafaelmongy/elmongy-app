@@ -56,7 +56,7 @@ def main(page: ft.Page):
     page.rtl = True
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 0
-    page.bgcolor = ft.colors.GREY_50
+    page.bgcolor = ft.Colors.GREY_50
 
     current_user = {"username": "", "role": ""}
 
