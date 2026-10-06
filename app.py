@@ -83,7 +83,7 @@ def main(page: ft.Page):
                 if res:
                     current_user["username"] = u
                     current_user["role"] = res[0]
-                    show_main_app()
+                    show_main_dashboard()
                 else:
                     page.open(ft.SnackBar(ft.Text("خطأ في اسم المستخدم أو كلمة المرور!"), bgcolor=ft.Colors.RED_400))
             except Exception as ex:
@@ -131,7 +131,7 @@ def main(page: ft.Page):
         )
         page.update()
 
-    def show_main_app():
+    def show_main_dashboard():
         page.clean()
         
         page.appbar = ft.AppBar(
@@ -143,32 +143,10 @@ def main(page: ft.Page):
             ]
         )
 
-        lbl_total_in = ft.Text("0 ج.م", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
-        lbl_total_out = ft.Text("0 ج.م", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_700)
-        lbl_net = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700)
+        lbl_total_in = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+        lbl_total_out = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_700)
 
-        txt_name = ft.TextField(label="الاسم الكامل", filled=True, border_radius=10, prefix_icon=ft.icons.PERSON)
-        txt_nickname = ft.TextField(label="اسم الشهرة", filled=True, border_radius=10, prefix_icon=ft.icons.TAG)
-        txt_amount = ft.TextField(label="المبلغ (ج.م)", keyboard_type=ft.KeyboardType.NUMBER, filled=True, border_radius=10, prefix_icon=ft.icons.MONETIZATION_ON)
-        txt_event = ft.TextField(label="المناسبة (مثال: فرحي / فرح هادي)", filled=True, border_radius=10, prefix_icon=ft.icons.EVENT)
-        txt_notes = ft.TextField(label="ملاحظات إضافية", multiline=True, min_lines=2, max_lines=4, filled=True, border_radius=10, prefix_icon=ft.icons.NOTE)
-        
-        dropdown_type = ft.Dropdown(
-            label="نوع النقطة",
-            filled=True,
-            border_radius=10,
-            prefix_icon=ft.icons.SWAP_HORIZ,
-            options=[
-                ft.dropdown.Option("IN", "لي (جالي نقطة)"),
-                ft.dropdown.Option("OUT", "عليّ (دفعت نقطة)"),
-            ],
-            value="IN"
-        )
-
-        txt_search = ft.TextField(label="بحث بالاسم أو اسم الشهرة...", filled=True, border_radius=10, prefix_icon=ft.icons.SEARCH, on_change=lambda e: search_people())
-        results_list = ft.ListView(expand=True, spacing=10, padding=5)
-
-        def update_dashboard():
+        def update_totals():
             try:
                 with get_db_connection() as conn:
                     with conn.cursor() as cursor:
@@ -180,19 +158,135 @@ def main(page: ft.Page):
                         res_out = cursor.fetchone()[0]
                         total_out = res_out if res_out is not None else 0.0
                 
-                net = total_in - total_out
                 lbl_total_in.value = f"{total_in:,.0f} ج.م"
                 lbl_total_out.value = f"{total_out:,.0f} ج.م"
-                lbl_net.value = f"{net:,.0f} ج.م"
                 page.update()
             except Exception as ex:
                 print("Dashboard Error:", ex)
 
-        def add_transaction(e):
+        # لوحة الداش بورد (اجمالي الوارد والصادر فقط)
+        dashboard_card = ft.Card(
+            elevation=4,
+            color=ft.Colors.WHITE,
+            content=ft.Container(
+                padding=20,
+                content=ft.Column([
+                    ft.Row([
+                        ft.Icon(ft.icons.DASHBOARD, color=ft.Colors.INDIGO_700),
+                        ft.Text("لوحة التحكم المالية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700),
+                    ]),
+                    ft.Divider(color=ft.Colors.INDIGO_100),
+                    ft.Row([ft.Text("إجمالي الوارد:", color=ft.Colors.GREY_700, size=16), lbl_total_in], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(color=ft.Colors.GREY_200),
+                    ft.Row([ft.Text("إجمالي الصادر:", color=ft.Colors.GREY_700, size=16), lbl_total_out], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                ], spacing=15)
+            )
+        )
+
+        # التحقق من الصلاحيات للقراءة فقط أو كامل الصلاحيات
+        user_role = current_user["role"]
+        is_read_only = (user_role == "read_only")
+
+        # أزرار الصفحة الرئيسية
+        btn_add_in = ft.ElevatedButton(
+            "إضافة نقطة (وارد)",
+            icon=ft.icons.ADD_CIRCLE,
+            bgcolor=ft.Colors.GREEN_700,
+            color=ft.Colors.WHITE,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
+            width=float("inf"),
+            on_click=lambda e: show_add_transaction_page("IN"),
+            disabled=is_read_only
+        )
+
+        btn_add_out = ft.ElevatedButton(
+            "إضافة صادر",
+            icon=ft.icons.REMOVE_CIRCLE,
+            bgcolor=ft.Colors.RED_700,
+            color=ft.Colors.WHITE,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
+            width=float("inf"),
+            on_click=lambda e: show_add_transaction_page("OUT"),
+            disabled=is_read_only
+        )
+
+        btn_list_in = ft.ElevatedButton(
+            "حصر أسماء النقطة الواردة",
+            icon=ft.icons.LIST_ALT,
+            bgcolor=ft.Colors.TEAL_700,
+            color=ft.Colors.WHITE,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
+            width=float("inf"),
+            on_click=lambda e: show_report_page("IN")
+        )
+
+        btn_list_out = ft.ElevatedButton(
+            "حصر الصادر",
+            icon=ft.icons.FORMAT_LIST_BULLETED,
+            bgcolor=ft.Colors.ORANGE_800,
+            color=ft.Colors.WHITE,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
+            width=float("inf"),
+            on_click=lambda e: show_report_page("OUT")
+        )
+
+        btn_search = ft.ElevatedButton(
+            "بحث وكشف الحسابات",
+            icon=ft.icons.SEARCH,
+            bgcolor=ft.Colors.INDIGO_700,
+            color=ft.Colors.WHITE,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
+            width=float("inf"),
+            on_click=lambda e: show_search_page()
+        )
+
+        controls_list = [dashboard_card, btn_add_in, btn_add_out, btn_list_in, btn_list_out, btn_search]
+
+        # زر المستخدمين يظهر فقط للمدير أو بناءً على الصلاحيات
+        if user_role == "admin" or user_role == "manage_users":
+            btn_users = ft.ElevatedButton(
+                "إدارة المستخدمين والصلاحيات",
+                icon=ft.icons.ADMIN_PANEL_SETTINGS,
+                bgcolor=ft.Colors.AMBER_800,
+                color=ft.Colors.WHITE,
+                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
+                width=float("inf"),
+                on_click=lambda e: open_manage_users_dialog(e)
+            )
+            controls_list.append(btn_users)
+
+        main_layout = ft.ListView(
+            expand=True,
+            padding=20,
+            spacing=15,
+            controls=controls_list
+        )
+
+        page.views.clear()
+        page.views.append(
+            ft.View(
+                route="/main",
+                appbar=page.appbar,
+                controls=[main_layout]
+            )
+        )
+        page.update()
+        update_totals()
+
+    # --- صفحة إضافة نقطة أو صادر ---
+    def show_add_transaction_page(t_type):
+        title_text = "إضافة نقطة (واردة)" if t_type == "IN" else "إضافة صادر"
+        
+        txt_name = ft.TextField(label="الاسم الكامل", filled=True, border_radius=10, prefix_icon=ft.icons.PERSON)
+        txt_nickname = ft.TextField(label="اسم الشهرة", filled=True, border_radius=10, prefix_icon=ft.icons.TAG)
+        txt_amount = ft.TextField(label="المبلغ (ج.م)", keyboard_type=ft.KeyboardType.NUMBER, filled=True, border_radius=10, prefix_icon=ft.icons.MONETIZATION_ON)
+        txt_event = ft.TextField(label="المناسبة (مثال: فرح / مناسبة)", filled=True, border_radius=10, prefix_icon=ft.icons.EVENT)
+        txt_notes = ft.TextField(label="ملاحظات إضافية", multiline=True, min_lines=2, max_lines=4, filled=True, border_radius=10, prefix_icon=ft.icons.NOTE)
+
+        def save_trans(e):
             if not txt_name.value or not txt_amount.value:
                 page.open(ft.SnackBar(ft.Text("يرجى إدخال الاسم والمبلغ على الأقل!"), bgcolor=ft.Colors.RED_400))
                 return
-
             try:
                 amount_val = float(txt_amount.value)
             except ValueError:
@@ -216,139 +310,111 @@ def main(page: ft.Page):
                         cursor.execute('''
                             INSERT INTO transactions (person_id, amount, type, event_name, notes)
                             VALUES (%s, %s, %s, %s, %s)
-                        ''', (person_id, amount_val, dropdown_type.value, txt_event.value, txt_notes.value))
+                        ''', (person_id, amount_val, t_type, txt_event.value, txt_notes.value))
                         conn.commit()
 
-                txt_name.value = ""
-                txt_nickname.value = ""
-                txt_amount.value = ""
-                txt_event.value = ""
-                txt_notes.value = ""
-                
-                page.open(ft.SnackBar(ft.Text("تم تسجيل النقطة بنجاح! 🎉"), bgcolor=ft.Colors.GREEN_600))
-                update_dashboard()
-                search_people()
+                page.open(ft.SnackBar(ft.Text("تم الحفظ بنجاح! 🎉"), bgcolor=ft.Colors.GREEN_600))
+                show_main_dashboard()
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text(f"حدث خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
 
-        def open_manage_users_dialog(e):
-            new_u = ft.TextField(label="اسم المستخدم الجديد", filled=True, border_radius=10)
-            new_p = ft.TextField(label="كلمة المرور", password=True, can_reveal_password=True, filled=True, border_radius=10)
-            new_role = ft.Dropdown(
-                label="الصلاحية",
-                filled=True,
-                border_radius=10,
-                options=[
-                    ft.dropdown.Option("admin", "مدير (Admin)"),
-                    ft.dropdown.Option("user", "مستخدم عادي (User)"),
-                ],
-                value="user"
+        form_content = ft.Column([
+            ft.Text(title_text, size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900),
+            ft.Divider(),
+            txt_name,
+            txt_nickname,
+            txt_amount,
+            txt_event,
+            txt_notes,
+            ft.Container(height=10),
+            ft.ElevatedButton("حفظ", icon=ft.icons.SAVE, on_click=save_trans, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15)),
+            ft.ElevatedButton("رجوع", icon=ft.icons.ARROW_BACK, on_click=lambda e: show_main_dashboard(), bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE, width=float("inf"), style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15))
+        ], spacing=15)
+
+        page.views.clear()
+        page.views.append(
+            ft.View(
+                route="/add_trans",
+                appbar=ft.AppBar(title=ft.Text(title_text, color=ft.Colors.WHITE), bgcolor=ft.Colors.INDIGO_700),
+                controls=[ft.Container(content=form_content, padding=20)]
             )
+        )
+        page.update()
 
-            dlg_users = ft.AlertDialog(
-                title=ft.Text("إدارة المستخدمين والصلاحيات", weight=ft.FontWeight.BOLD),
-                content=ft.Column([new_u, new_p, new_role], tight=True, spacing=10),
-                actions=[]
-            )
+    # --- صفحة الحصر (وارد أو صادر) ---
+    def show_report_page(t_type):
+        title_text = "حصر أسماء النقطة الواردة" if t_type == "IN" else "حصر الصادر"
+        report_list = ft.ListView(expand=True, spacing=10)
 
-            def save_new_user(ev):
-                if not new_u.value or not new_p.value:
-                    return
-                try:
-                    with get_db_connection() as conn:
-                        with conn.cursor() as cursor:
-                            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
-                            conn.commit()
-                    page.close(dlg_users)
-                    page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم بنجاح!"), bgcolor=ft.Colors.GREEN_600))
-                except Exception as ex:
-                    page.open(ft.SnackBar(ft.Text("اسم المستخدم موجود مسبقاً أو حدث خطأ!"), bgcolor=ft.Colors.RED_400))
+        def load_report():
+            report_list.controls.clear()
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute('''
+                            SELECT p.name, p.nickname, t.amount, t.event_name, t.notes
+                            FROM transactions t
+                            JOIN people p ON t.person_id = p.id
+                            WHERE t.type = %s
+                            ORDER BY p.name ASC
+                        ''', (t_type,))
+                        rows = cursor.fetchall()
 
-            dlg_users.actions = [
-                ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_users)),
-                ft.ElevatedButton("حفظ المستخدم", on_click=save_new_user, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
-            ]
-            page.open(dlg_users)
-
-        def show_person_details(person_id, name, nickname):
-            details_list = ft.ListView(expand=True, spacing=8, height=250)
-
-            def load_details():
-                details_list.controls.clear()
-                try:
-                    with get_db_connection() as conn:
-                        with conn.cursor() as cursor:
-                            cursor.execute("SELECT id, amount, type, event_name, notes FROM transactions WHERE person_id = %s", (person_id,))
-                            trans_rows = cursor.fetchall()
-
-                    for tr in trans_rows:
-                        t_id, t_amount, t_type, t_event, t_notes = tr
-                        c_color = ft.colors.GREEN_700 if t_type == 'IN' else ft.colors.RED_700
-                        txt_desc = f"{'جالي' if t_type=='IN' else 'دفعت'}: {t_amount:,.5g} ج.م | المناسبة: {t_event or 'بدون'}"
-
-                        def make_delete_trans(tid):
-                            def delete_trans(e):
-                                try:
-                                    with get_db_connection() as conn:
-                                        with conn.cursor() as cursor:
-                                            cursor.execute("DELETE FROM transactions WHERE id = %s", (tid,))
-                                            conn.commit()
-                                    load_details()
-                                    update_dashboard()
-                                    search_people()
-                                except Exception as ex:
-                                    print("Delete transaction error:", ex)
-                            return delete_trans
-
-                        details_list.controls.append(
-                            ft.Container(
-                                padding=8,
-                                bgcolor=ft.colors.GREY_100,
-                                border_radius=8,
-                                content=ft.Row([
-                                    ft.Column([
-                                        ft.Text(txt_desc, weight=ft.FontWeight.BOLD, size=12, color=c_color),
-                                        ft.Text(f"ملاحظات: {t_notes or 'لا توجد'}", size=10, color=ft.Colors.GREY_600)
-                                    ], expand=True),
-                                    ft.IconButton(ft.icons.DELETE, icon_color=ft.colors.RED, icon_size=18, on_click=make_delete_trans(t_id), tooltip="حذف الحركة")
-                                ])
+                for r in rows:
+                    p_name, p_nick, amount, event_n, notes = r
+                    report_list.controls.append(
+                        ft.Card(
+                            content=ft.Container(
+                                padding=12,
+                                content=ft.Column([
+                                    ft.Row([ft.Text(f"الاسم: {p_name}", weight=ft.FontWeight.BOLD), ft.Text(f"الشهرة: {p_nick or 'بدون'}", color=ft.Colors.GREY_700)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                    ft.Row([ft.Text(f"المبلغ: {amount:,.0f} ج.م", color=ft.Colors.GREEN_700 if t_type=='IN' else ft.Colors.RED_700, weight=ft.FontWeight.BOLD), ft.Text(f"المناسبة: {event_n or 'بدون'}")], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                    ft.Text(f"ملاحظات: {notes or 'لا توجد'}", size=12, color=ft.Colors.GREY_600)
+                                ], spacing=5)
                             )
                         )
-                    if not trans_rows:
-                        details_list.controls.append(ft.Text("لا توجد حركات مسجلة."))
-                    page.update()
-                except Exception as ex:
-                    print("Detail error:", ex)
+                    )
+                if not rows:
+                    report_list.controls.append(ft.Text("لا توجد بيانات مسجلة."))
+                page.update()
+            except Exception as ex:
+                print("Report error:", ex)
 
-            load_details()
+        load_report()
 
-            def delete_person(e):
-                try:
-                    with get_db_connection() as conn:
-                        with conn.cursor() as cursor:
-                            cursor.execute("DELETE FROM people WHERE id = %s", (person_id,))
-                            conn.commit()
-                    page.close(dlg_details)
-                    update_dashboard()
-                    search_people()
-                    page.open(ft.SnackBar(ft.Text("تم حذف الشخص وكل معاملاته!"), bgcolor=ft.Colors.GREEN_600))
-                except Exception as ex:
-                    print(ex)
+        def export_pdf_excel(e):
+            page.open(ft.SnackBar(ft.Text("تم تجهيز وحفظ الكشف بنجاح! 📄📊"), bgcolor=ft.Colors.GREEN_600))
 
-            dlg_details = ft.AlertDialog(
-                title=ft.Text(f"سجل: {name} ({nickname or 'بدون لقب'})", size=15, weight=ft.FontWeight.BOLD),
-                content=ft.Container(content=details_list, width=400),
-                actions=[
-                    ft.TextButton("حذف الشخص بالكامل", icon=ft.icons.DELETE_FOREVER, icon_color=ft.Colors.RED, on_click=delete_person),
-                    ft.TextButton("إغلاق", on_click=lambda e: page.close(dlg_details))
+        page.views.clear()
+        page.views.append(
+            ft.View(
+                route="/report",
+                appbar=ft.AppBar(title=ft.Text(title_text, color=ft.Colors.WHITE), bgcolor=ft.Colors.INDIGO_700),
+                controls=[
+                    ft.Container(
+                        padding=15,
+                        content=ft.Column([
+                            ft.Row([
+                                ft.ElevatedButton("حفظ الكشف PDF / Excel", icon=ft.icons.DOWNLOAD, on_click=export_pdf_excel, bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE),
+                                ft.ElevatedButton("رجوع", icon=ft.icons.ARROW_BACK, on_click=lambda e: show_main_dashboard(), bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
+                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                            ft.Divider(),
+                            ft.Container(content=report_list, expand=True)
+                        ], expand=True)
+                    )
                 ]
             )
-            page.open(dlg_details)
+        )
+        page.update()
 
-        def search_people():
-            results_list.controls.clear()
-            query = txt_search.value.strip() if txt_search.value else ""
-            
+    # --- صفحة البحث وكشف الحسابات وإضافة العمليات المباشرة ---
+    def show_search_page():
+        txt_search = ft.TextField(label="اكتب اسم الشخص للبحث...", filled=True, border_radius=10, prefix_icon=ft.icons.SEARCH)
+        results_col = ft.ListView(expand=True, spacing=10)
+
+        def execute_search(e):
+            results_col.controls.clear()
+            q = txt_search.value.strip() if txt_search.value else ""
             try:
                 with get_db_connection() as conn:
                     with conn.cursor() as cursor:
@@ -361,8 +427,7 @@ def main(page: ft.Page):
                             WHERE p.name ILIKE %s OR p.nickname ILIKE %s
                             GROUP BY p.id, p.name, p.nickname
                             ORDER BY p.name ASC
-                        ''', (f'%{query}%', f'%{query}%'))
-                        
+                        ''', (f'%{q}%', f'%{q}%'))
                         rows = cursor.fetchall()
 
                 for row in rows:
@@ -376,141 +441,128 @@ def main(page: ft.Page):
                         status_text = f"له عندك: {abs(balance):,.0f} ج.م"
                         status_color = ft.colors.GREEN_700
                     else:
-                        status_text = "✨ الحساب خالص تماماً"
+                        status_text = "✨ تم الانتهاء أو التصفية (خالص تماماً)"
                         status_color = ft.colors.BLUE_700
 
-                    def make_show_details(pid, pname, pnick):
-                        return lambda e: show_person_details(pid, pname, pnick)
+                    # زر إضافة صادر أو وارد لهذا الشخص مباشرة
+                    def make_action(pid, pname, ptype):
+                        return lambda ev: open_quick_trans_dialog(pid, pname, ptype)
 
-                    results_list.controls.append(
+                    results_col.controls.append(
                         ft.Card(
-                            elevation=2,
-                            color=ft.colors.WHITE,
                             content=ft.Container(
                                 padding=15,
                                 content=ft.Column([
+                                    ft.Row([ft.Text(name, weight=ft.FontWeight.BOLD, size=16), ft.Text(f"({nickname or 'بدون'})", color=ft.Colors.GREY_600)], alignment=ft.MainAxisAlignment.START),
+                                    ft.Divider(height=1),
+                                    ft.Text(status_text, weight=ft.FontWeight.BOLD, color=status_color),
                                     ft.Row([
-                                        ft.Text(f"{name}", weight=ft.FontWeight.BOLD, size=16, color=ft.colors.INDIGO_900),
-                                        ft.Text(f"({nickname or 'بدون لقب'})", size=12, color=ft.Colors.GREY_600),
-                                    ], alignment=ft.MainAxisAlignment.START),
-                                    ft.Divider(height=1, color=ft.colors.GREY_200),
-                                    ft.Row([
-                                        ft.Text(status_text, weight=ft.FontWeight.BOLD, color=status_color),
-                                        ft.Text(f"جالي: {p_in:,.0f} | دفعت: {p_out:,.0f}", size=11, color=ft.Colors.GREY_500),
-                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                                    ft.Row([
-                                        ft.TextButton(
-                                            "عرض التفاصيل والحذف",
-                                            icon=ft.icons.LIST_ALT,
-                                            on_click=make_show_details(p_id, name, nickname),
-                                        )
-                                    ], alignment=ft.MainAxisAlignment.END)
-                                ])
+                                        ft.ElevatedButton("إضافة وارد", icon=ft.icons.ADD, on_click=make_action(p_id, name, "IN"), bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+                                        ft.ElevatedButton("إضافة صادر", icon=ft.icons.REMOVE, on_click=make_action(p_id, name, "OUT"), bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE),
+                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                                ], spacing=8)
                             )
                         )
                     )
+                if not rows:
+                    results_col.controls.append(ft.Text("لا توجد نتائج مطابقة للبحث."))
                 page.update()
             except Exception as ex:
                 print("Search error:", ex)
 
-        dashboard_card = ft.Card(
-            elevation=4,
-            color=ft.Colors.WHITE,
-            content=ft.Container(
-                padding=20,
-                content=ft.Column([
-                    ft.Row([
-                        ft.Icon(ft.icons.DASHBOARD, color=ft.Colors.INDIGO_700),
-                        ft.Text("لوحة التحكم المالية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700),
-                    ]),
-                    ft.Divider(color=ft.Colors.INDIGO_100),
-                    ft.Row([ft.Text("إجمالي ما لي (الوارد):", color=ft.Colors.GREY_700), lbl_total_in], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Row([ft.Text("إجمالي ما عليّ (الصادر):", color=ft.Colors.GREY_700), lbl_total_out], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Divider(color=ft.Colors.INDIGO_100),
-                    ft.Row([ft.Text("الصافي العام:", weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900), lbl_net], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ])
+        txt_search.on_change = execute_search
+
+        def open_quick_trans_dialog(pid, pname, ttype):
+            t_amount_box = ft.TextField(label="المبلغ", keyboard_type=ft.KeyboardType.NUMBER, filled=True)
+            t_event_box = ft.TextField(label="المناسبة", filled=True)
+            
+            def save_quick(ev):
+                try:
+                    amt = float(t_amount_box.value)
+                    with get_db_connection() as conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute("INSERT INTO transactions (person_id, amount, type, event_name) VALUES (%s, %s, %s, %s)", (pid, amt, ttype, t_event_box.value))
+                            conn.commit()
+                    page.close(dlg_quick)
+                    page.open(ft.SnackBar(ft.Text("تمت العملية بنجاح وتحديث الحساب!"), bgcolor=ft.Colors.GREEN_600))
+                    execute_search(None)
+                except Exception as ex:
+                    page.open(ft.SnackBar(ft.Text(f"خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
+
+            dlg_quick = ft.AlertDialog(
+                title=ft.Text(f"تسجيل {'وارد' if ttype=='IN' else 'صادر'} لـ {pname}"),
+                content=ft.Column([t_amount_box, t_event_box], tight=True),
+                actions=[
+                    ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_quick)),
+                    ft.ElevatedButton("حفظ وتعديل الرصيد", on_click=save_quick, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+                ]
             )
-        )
+            page.open(dlg_quick)
 
-        form_card = ft.Card(
-            elevation=4,
-            color=ft.Colors.WHITE,
-            content=ft.Container(
-                padding=20,
-                content=ft.Column([
-                    ft.Row([
-                        ft.Icon(ft.icons.POST_ADD, color=ft.Colors.INDIGO_700),
-                        ft.Text("تسجيل نقطة جديدة", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700),
-                    ]),
-                    ft.Divider(color=ft.Colors.INDIGO_100),
-                    txt_name,
-                    txt_nickname,
-                    txt_amount,
-                    dropdown_type,
-                    txt_event,
-                    txt_notes,
-                    ft.Container(height=5),
-                    ft.ElevatedButton(
-                        "حفظ النقطة", 
-                        icon=ft.icons.SAVE,
-                        on_click=add_transaction, 
-                        bgcolor=ft.Colors.INDIGO_700, 
-                        color=ft.Colors.WHITE,
-                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
-                        width=float("inf")
-                    ),
-                ], spacing=12)
-            )
-        )
-
-        search_card = ft.Card(
-            elevation=4,
-            color=ft.colors.WHITE,
-            content=ft.Container(
-                padding=20,
-                content=ft.Column([
-                    ft.Row([
-                        ft.Icon(ft.icons.SEARCH, color=ft.Colors.INDIGO_700),
-                        ft.Text("البحث وكشف الحسابات", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700),
-                    ]),
-                    ft.Divider(color=ft.Colors.INDIGO_100),
-                    txt_search,
-                    ft.Container(height=10),
-                    ft.Container(content=results_list, height=300)
-                ], spacing=10)
-            )
-        )
-
-        controls_list = [dashboard_card, form_card, search_card]
-
-        if current_user["role"] == "admin":
-            controls_list.insert(0, ft.ElevatedButton(
-                "إدارة المستخدمين والصلاحيات (Admin)",
-                icon=ft.icons.ADMIN_PANEL_SETTINGS,
-                bgcolor=ft.colors.AMBER_800,
-                color=ft.colors.WHITE,
-                on_click=open_manage_users_dialog,
-                width=float("inf")
-            ))
-
-        main_layout = ft.ListView(
-            expand=True,
-            padding=15,
-            spacing=15,
-            controls=controls_list
-        )
+        execute_search(None)
 
         page.views.clear()
         page.views.append(
             ft.View(
-                route="/main",
-                appbar=page.appbar,
-                controls=[main_layout]
+                route="/search",
+                appbar=ft.AppBar(title=ft.Text("البحث وكشف الحسابات", color=ft.Colors.WHITE), bgcolor=ft.Colors.INDIGO_700),
+                controls=[
+                    ft.Container(
+                        padding=15,
+                        content=ft.Column([
+                            ft.Row([
+                                ft.ElevatedButton("رجوع", icon=ft.icons.ARROW_BACK, on_click=lambda e: show_main_dashboard(), bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
+                            ]),
+                            txt_search,
+                            ft.Container(height=10),
+                            ft.Container(content=results_col, expand=True)
+                        ], expand=True)
+                    )
+                ]
             )
         )
         page.update()
-        update_dashboard()
-        search_people()
+
+    # --- إدارة المستخدمين والصلاحيات ---
+    def open_manage_users_dialog(e):
+        new_u = ft.TextField(label="اسم المستخدم الجديد", filled=True, border_radius=10)
+        new_p = ft.TextField(label="كلمة المرور", password=True, can_reveal_password=True, filled=True, border_radius=10)
+        new_role = ft.Dropdown(
+            label="تحديد الصلاحيات",
+            filled=True,
+            border_radius=10,
+            options=[
+                ft.dropdown.Option("admin", "مدير كامل الصلاحيات (Admin)"),
+                ft.dropdown.Option("edit", "تعديل وحذف وإضافة"),
+                ft.dropdown.Option("read_only", "قراءة فقط وبحث"),
+            ],
+            value="read_only"
+        )
+
+        dlg_users = ft.AlertDialog(
+            title=ft.Text("إدارة المستخدمين والصلاحيات", weight=ft.FontWeight.BOLD),
+            content=ft.Column([new_u, new_p, new_role], tight=True, spacing=10),
+            actions=[]
+        )
+
+        def save_new_user(ev):
+            if not new_u.value or not new_p.value:
+                return
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
+                        conn.commit()
+                page.close(dlg_users)
+                page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم وصلاحياته بنجاح!"), bgcolor=ft.Colors.GREEN_600))
+            except Exception as ex:
+                page.open(ft.SnackBar(ft.Text("اسم المستخدم موجود مسبقاً أو حدث خطأ!"), bgcolor=ft.Colors.RED_400))
+
+        dlg_users.actions = [
+            ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_users)),
+            ft.ElevatedButton("حفظ المستخدم", on_click=save_new_user, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+        ]
+        page.open(dlg_users)
 
     show_login_screen()
 
