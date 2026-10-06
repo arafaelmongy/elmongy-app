@@ -245,6 +245,12 @@ def main(page: ft.Page):
                 value="user"
             )
 
+            dlg_users = ft.AlertDialog(
+                title=ft.Text("إدارة المستخدمين والصلاحيات", weight=ft.FontWeight.BOLD),
+                content=ft.Column([new_u, new_p, new_role], tight=True, spacing=10),
+                actions=[]
+            )
+
             def save_new_user(ev):
                 if not new_u.value or not new_p.value:
                     return
@@ -258,19 +264,17 @@ def main(page: ft.Page):
                 except Exception as ex:
                     page.open(ft.SnackBar(ft.Text("اسم المستخدم موجود مسبقاً أو حدث خطأ!"), bgcolor=ft.Colors.RED_400))
 
-            dlg_users = ft.AlertDialog(
-                title=ft.Text("إدارة المستخدمين والصلاحيات", weight=ft.FontWeight.BOLD),
-                content=ft.Column([new_u, new_p, new_role], tight=True, spacing=10),
-                actions=[
-                    ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_users)),
-                    ft.ElevatedButton("حفظ المستخدم", on_click=save_new_user, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
-                ]
-            )
+            dlg_users.actions = [
+                ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_users)),
+                ft.ElevatedButton("حفظ المستخدم", on_click=save_new_user, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+            ]
             page.open(dlg_users)
 
         def show_person_details(person_id, name, nickname):
-            def load_details(list_view):
-                list_view.controls.clear()
+            details_list = ft.ListView(expand=True, spacing=8, height=250)
+
+            def load_details():
+                details_list.controls.clear()
                 try:
                     with get_db_connection() as conn:
                         with conn.cursor() as cursor:
@@ -282,19 +286,21 @@ def main(page: ft.Page):
                         c_color = ft.colors.GREEN_700 if t_type == 'IN' else ft.colors.RED_700
                         txt_desc = f"{'جالي' if t_type=='IN' else 'دفعت'}: {t_amount:,.5g} ج.م | المناسبة: {t_event or 'بدون'}"
 
-                        def delete_trans(e, tid=t_id):
-                            try:
-                                with get_db_connection() as conn:
-                                    with conn.cursor() as cursor:
-                                        cursor.execute("DELETE FROM transactions WHERE id = %s", (tid,))
-                                        conn.commit()
-                                load_details(details_list)
-                                update_dashboard()
-                                search_people()
-                            except Exception as ex:
-                                print("Delete transaction error:", ex)
+                        def make_delete_trans(tid):
+                            def delete_trans(e):
+                                try:
+                                    with get_db_connection() as conn:
+                                        with conn.cursor() as cursor:
+                                            cursor.execute("DELETE FROM transactions WHERE id = %s", (tid,))
+                                            conn.commit()
+                                    load_details()
+                                    update_dashboard()
+                                    search_people()
+                                except Exception as ex:
+                                    print("Delete transaction error:", ex)
+                            return delete_trans
 
-                        list_view.controls.append(
+                        details_list.controls.append(
                             ft.Container(
                                 padding=8,
                                 bgcolor=ft.colors.GREY_100,
@@ -304,18 +310,17 @@ def main(page: ft.Page):
                                         ft.Text(txt_desc, weight=ft.FontWeight.BOLD, size=12, color=c_color),
                                         ft.Text(f"ملاحظات: {t_notes or 'لا توجد'}", size=10, color=ft.Colors.GREY_600)
                                     ], expand=True),
-                                    ft.IconButton(ft.icons.DELETE, icon_color=ft.colors.RED, icon_size=18, on_click=delete_trans, tooltip="حذف الحركة")
+                                    ft.IconButton(ft.icons.DELETE, icon_color=ft.colors.RED, icon_size=18, on_click=make_delete_trans(t_id), tooltip="حذف الحركة")
                                 ])
                             )
                         )
                     if not trans_rows:
-                        list_view.controls.append(ft.Text("لا توجد حركات مسجلة."))
+                        details_list.controls.append(ft.Text("لا توجد حركات مسجلة."))
                     page.update()
                 except Exception as ex:
                     print("Detail error:", ex)
 
-            details_list = ft.ListView(expand=True, spacing=8, height=250)
-            load_details(details_list)
+            load_details()
 
             def delete_person(e):
                 try:
@@ -374,6 +379,9 @@ def main(page: ft.Page):
                         status_text = "✨ الحساب خالص تماماً"
                         status_color = ft.colors.BLUE_700
 
+                    def make_show_details(pid, pname, pnick):
+                        return lambda e: show_person_details(pid, pname, pnick)
+
                     results_list.controls.append(
                         ft.Card(
                             elevation=2,
@@ -394,7 +402,7 @@ def main(page: ft.Page):
                                         ft.TextButton(
                                             "عرض التفاصيل والحذف",
                                             icon=ft.icons.LIST_ALT,
-                                            on_click=lambda e, pid=p_id, pname=name, pnick=nickname: show_person_details(pid, pname, pnick),
+                                            on_click=make_show_details(p_id, name, nickname),
                                         )
                                     ], alignment=ft.MainAxisAlignment.END)
                                 ])
