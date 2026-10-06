@@ -1,2 +1,2 @@
-flet==0.24.0
+flet
 psycopg[binary]>=3.0.0
