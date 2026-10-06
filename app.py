@@ -1,7 +1,6 @@
 import os
 import psycopg
 import flet as ft
-from hb_fpdf import FPDF # أو استيراد fpdf العادية حسب النسخة لديك
 from fpdf import FPDF
 import tempfile
 
@@ -63,7 +62,6 @@ def main(page: ft.Page):
 
     current_user = {"username": "", "role": ""}
 
-    # عنصر إدارة الملفات للتحميل المباشر لجهاز المستخدم
     file_picker = ft.FilePicker()
     page.overlay.append(file_picker)
 
@@ -404,7 +402,6 @@ def main(page: ft.Page):
                     line_text = f"Name: {safe_name} | Nick: {safe_nick} | Amount: {amount} LE | Event: {safe_event}"
                     pdf.cell(200, 8, txt=line_text, ln=True)
 
-                # حفظ مؤقت على السيرفر ثم تجهيزه للتحميل
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     pdf.output(tmp.name)
                     tmp_path = tmp.name
@@ -412,14 +409,12 @@ def main(page: ft.Page):
                 with open(tmp_path, "rb") as f:
                     pdf_bytes = f.read()
 
-                # استخدام FilePicker لحفظ الملف على جهازك الشخصي
                 file_picker.save_file(
                     dialog_title="حفظ تقرير الـ PDF",
                     file_name="Financial_Report.pdf",
                     allowed_extensions=["pdf"]
                 )
                 
-                # ربط نتيجة الحفظ بتحميل الملف الفعلي
                 def on_file_picked(e: ft.FilePickerResultEvent):
                     if e.path:
                         with open(e.path, "wb") as f:
@@ -639,37 +634,41 @@ def main(page: ft.Page):
 
         def save_new_user(ev):
             if not new_u.value or not new_p.value:
+                page.open(ft.SnackBar(ft.Text("يرجى إدخال اسم المستخدم وكلمة المرور!"), bgcolor=ft.Colors.RED_400))
                 return
             try:
                 with get_db_connection() as conn:
                     with conn.cursor() as cursor:
                         cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
                         conn.commit()
+                page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم الجديد بنجاح!"), bgcolor=ft.Colors.GREEN_600))
                 new_u.value = ""
                 new_p.value = ""
                 load_users_list()
-                page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم وصلاحياته بنجاح!"), bgcolor=ft.Colors.GREEN_600))
+                page.update()
             except Exception as ex:
-                page.open(ft.SnackBar(ft.Text("اسم المستخدم موجود مسبقاً أو حدث خطأ!"), bgcolor=ft.Colors.RED_400))
+                page.open(ft.SnackBar(ft.Text(f"خطأ (ربما الاسم موجود مسبقاً): {ex}"), bgcolor=ft.Colors.RED_400))
 
         dlg_users = ft.AlertDialog(
-            title=ft.Text("إدارة المستخدمين والبحث", weight=ft.FontWeight.BOLD),
+            title=ft.Text("إدارة المستخدمين والصلاحيات"),
             content=ft.Column([
-                ft.Text("إضافة مستخدم جديد:", weight=ft.FontWeight.BOLD, size=14),
-                new_u, new_p, new_role,
-                ft.ElevatedButton("حفظ المستخدم الجديد", on_click=save_new_user, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+                ft.Text("إضافة مستخدم جديد:", weight=ft.FontWeight.BOLD),
+                new_u,
+                new_p,
+                new_role,
+                ft.ElevatedButton("إضافة المستخدم", icon=ft.icons.PERSON_ADD, on_click=save_new_user, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
                 ft.Divider(),
-                ft.Text("بحث وتعديل المستخدمين الحاليين:", weight=ft.FontWeight.BOLD, size=14),
+                ft.Text("قائمة المستخدمين الحاليين:", weight=ft.FontWeight.BOLD),
                 txt_user_search,
-                users_list_col
-            ], tight=True, spacing=10, scroll=ft.ScrollMode.AUTO),
+                ft.Container(content=users_list_col, expand=True)
+            ], tight=False, width=400, height=500),
             actions=[
                 ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_users))
             ]
         )
         page.open(dlg_users)
 
+    # تشغيل شاشة تسجيل الدخول عند البدء
     show_login_screen()
 
-if __name__ == "__main__":
-    ft.app(target=main, port=int(os.environ.get("PORT", 8080)))
+ft.app(target=main)
