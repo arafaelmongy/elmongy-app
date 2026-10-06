@@ -465,4 +465,211 @@ def main(page: ft.Page):
                             GROUP BY p.id, p.name, p.nickname
                             ORDER BY p.name ASC
                         ''', (f'%{q}%', f'%{q}%'))
-                        rows
+                        rows = cursor.fetchall()
+
+                for row in rows:
+                    p_id, name, nickname, p_in, p_out = row
+                    balance = p_in - p_out
+                    
+                    if balance > 0:
+                        status_text = f"عليك له: {balance:,.0f} ج.م"
+                        status_color = ft.colors.RED_700
+                    elif balance < 0:
+                        status_text = f"له عندك: {abs(balance):,.0f} ج.م"
+                        status_color = ft.colors.GREEN_700
+                    else:
+                        status_text = "✨ تم الانتهاء أو التصفية (خالص تماماً)"
+                        status_color = ft.colors.BLUE_700
+
+                    def make_action(pid, pname, ptype):
+                        return lambda ev: open_quick_trans_dialog(pid, pname, ptype)
+
+                    results_col.controls.append(
+                        ft.Card(
+                            content=ft.Container(
+                                padding=15,
+                                content=ft.Column([
+                                    ft.Row([ft.Text(name, weight=ft.FontWeight.BOLD, size=16), ft.Text(f"({nickname or 'بدون'})", color=ft.Colors.GREY_600)], alignment=ft.MainAxisAlignment.START),
+                                    ft.Divider(height=1),
+                                    ft.Text(status_text, weight=ft.FontWeight.BOLD, color=status_color),
+                                    ft.Row([
+                                        ft.ElevatedButton("إضافة وارد", icon=ft.icons.ADD, on_click=make_action(p_id, name, "IN"), bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+                                        ft.ElevatedButton("إضافة صادر", icon=ft.icons.REMOVE, on_click=make_action(p_id, name, "OUT"), bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE),
+                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                                ], spacing=8)
+                            )
+                        )
+                    )
+                if not rows:
+                    results_col.controls.append(ft.Text("لا توجد نتائج مطابقة للبحث."))
+                page.update()
+            except Exception as ex:
+                print("Search error:", ex)
+
+        txt_search.on_change = execute_search
+
+        def open_quick_trans_dialog(pid, pname, ttype):
+            t_amount_box = ft.TextField(label="المبلغ", keyboard_type=ft.KeyboardType.NUMBER, filled=True)
+            t_event_box = ft.TextField(label="المناسبة", filled=True)
+            
+            dlg_quick = ft.AlertDialog()
+
+            def save_quick(ev):
+                try:
+                    amt = float(t_amount_box.value)
+                    with get_db_connection() as conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute("INSERT INTO transactions (person_id, amount, type, event_name) VALUES (%s, %s, %s, %s)", (pid, amt, ttype, t_event_box.value))
+                            conn.commit()
+                    page.close(dlg_quick)
+                    page.open(ft.SnackBar(ft.Text("تمت العملية بنجاح وتحديث الحساب!"), bgcolor=ft.Colors.GREEN_600))
+                    execute_search(None)
+                except Exception as ex:
+                    page.open(ft.SnackBar(ft.Text(f"خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
+
+            dlg_quick.title = ft.Text(f"تسجيل {'وارد' if ttype=='IN' else 'صادر'} لـ {pname}")
+            dlg_quick.content = ft.Column([t_amount_box, t_event_box], tight=True)
+            dlg_quick.actions = [
+                ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_quick)),
+                ft.ElevatedButton("حفظ وتعديل الرصيد", on_click=save_quick, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+            ]
+            page.open(dlg_quick)
+
+        execute_search(None)
+
+        page.views.clear()
+        page.views.append(
+            ft.View(
+                route="/search",
+                appbar=ft.AppBar(title=ft.Text("البحث وكشف الحسابات", color=ft.Colors.WHITE), bgcolor=ft.Colors.INDIGO_700),
+                controls=[
+                    ft.Container(
+                        padding=15,
+                        content=ft.Column([
+                            ft.Row([
+                                ft.ElevatedButton("رجوع", icon=ft.icons.ARROW_BACK, on_click=lambda e: show_main_dashboard(), bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
+                            ]),
+                            txt_search,
+                            ft.Container(height=10),
+                            ft.Container(content=results_col, expand=True)
+                        ], expand=True)
+                    )
+                ]
+            )
+        )
+        page.update()
+
+    def open_manage_users_dialog(e):
+        users_list_col = ft.ListView(expand=True, spacing=10, height=200)
+        txt_user_search = ft.TextField(label="بحث عن مستخدم...", filled=True, border_radius=10, dense=True)
+
+        def load_users_list(query=""):
+            users_list_col.controls.clear()
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT id, username, role, password FROM users WHERE username ILIKE %s", (f'%{query}%',))
+                        users = cursor.fetchall()
+
+                for u_id, uname, urole, upass in users:
+                    u_pass_field = ft.TextField(value=upass, label="كلمة المرور الجديدة", password=True, can_reveal_password=True, dense=True)
+                    r_dropdown = ft.Dropdown(
+                        value=urole,
+                        dense=True,
+                        options=[
+                            ft.dropdown.Option("admin", "مدير"),
+                            ft.dropdown.Option("edit", "تعديل"),
+                            ft.dropdown.Option("read_only", "قراءة فقط"),
+                        ]
+                    )
+
+                    def make_user_saver(uid, up, rd):
+                        return lambda ev: save_user_changes(uid, up.value, rd.value)
+
+                    users_list_col.controls.append(
+                        ft.Card(
+                            content=ft.Container(
+                                padding=10,
+                                content=ft.Column([
+                                    ft.Text(f"المستخدم: {uname}", weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900),
+                                    u_pass_field,
+                                    r_dropdown,
+                                    ft.ElevatedButton("حفظ التعديل", icon=ft.icons.SAVE, on_click=make_user_saver(u_id, u_pass_field, r_dropdown), bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+                                ], spacing=5)
+                            )
+                        )
+                    )
+                page.update()
+            except Exception as ex:
+                print("Load users error:", ex)
+
+        def save_user_changes(uid, new_pass, new_role):
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("UPDATE users SET password = %s, role = %s WHERE id = %s", (new_pass.strip(), new_role, uid))
+                        conn.commit()
+                page.open(ft.SnackBar(ft.Text("تم تعديل بيانات المستخدم بنجاح!"), bgcolor=ft.Colors.GREEN_600))
+                load_users_list(txt_user_search.value)
+            except Exception as ex:
+                page.open(ft.SnackBar(ft.Text(f"خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
+
+        txt_user_search.on_change = lambda ev: load_users_list(txt_user_search.value)
+        load_users_list()
+
+        new_u = ft.TextField(label="اسم المستخدم الجديد", filled=True, border_radius=10, dense=True)
+        new_p = ft.TextField(label="كلمة المرور", password=True, can_reveal_password=True, filled=True, border_radius=10, dense=True)
+        new_role = ft.Dropdown(
+            label="تحديد الصلاحيات",
+            filled=True,
+            border_radius=10,
+            dense=True,
+            options=[
+                ft.dropdown.Option("admin", "مدير كامل الصلاحيات (Admin)"),
+                ft.dropdown.Option("edit", "تعديل وحذف وإضافة"),
+                ft.dropdown.Option("read_only", "قراءة فقط وبحث"),
+            ],
+            value="read_only"
+        )
+
+        dlg_users = ft.AlertDialog()
+
+        def save_new_user(ev):
+            if not new_u.value or not new_p.value:
+                page.open(ft.SnackBar(ft.Text("يرجى إدخال اسم المستخدم وكلمة المرور!"), bgcolor=ft.Colors.RED_400))
+                return
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
+                        conn.commit()
+                page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم الجديد بنجاح!"), bgcolor=ft.Colors.GREEN_600))
+                new_u.value = ""
+                new_p.value = ""
+                load_users_list()
+                page.update()
+            except Exception as ex:
+                page.open(ft.SnackBar(ft.Text(f"خطأ (ربما الاسم موجود مسبقاً): {ex}"), bgcolor=ft.Colors.RED_400))
+
+        dlg_users.title = ft.Text("إدارة المستخدمين والصلاحيات")
+        dlg_users.content = ft.Column([
+            ft.Text("إضافة مستخدم جديد:", weight=ft.FontWeight.BOLD),
+            new_u,
+            new_p,
+            new_role,
+            ft.ElevatedButton("إضافة المستخدم", icon=ft.icons.PERSON_ADD, on_click=save_new_user, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+            ft.Divider(),
+            ft.Text("قائمة المستخدمين الحاليين:", weight=ft.FontWeight.BOLD),
+            txt_user_search,
+            ft.Container(content=users_list_col, expand=True)
+        ], tight=False, width=400, height=500)
+        dlg_users.actions = [
+            ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_users))
+        ]
+        
+        page.open(dlg_users)
+
+    # تشغيل شاشة تسجيل الدخول عند البدء
+    show_login_screen()
+
+ft.app(target=main)
