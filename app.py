@@ -12,43 +12,42 @@ def get_db_connection():
     return psycopg.connect(DB_URL)
 
 def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS people (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            nickname TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS transactions (
-            id SERIAL PRIMARY KEY,
-            person_id INTEGER,
-            amount REAL,
-            type TEXT,
-            event_name TEXT,
-            notes TEXT,
-            FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT NOT NULL
-        )
-    ''')
-    
-    cursor.execute("SELECT id FROM users WHERE username = 'admin'")
-    if not cursor.fetchone():
-        cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", ('admin', '123', 'admin'))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS people (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        nickname TEXT
+                    )
+                ''')
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS transactions (
+                        id SERIAL PRIMARY KEY,
+                        person_id INTEGER,
+                        amount REAL,
+                        type TEXT,
+                        event_name TEXT,
+                        notes TEXT,
+                        FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
+                    )
+                ''')
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT UNIQUE NOT NULL,
+                        password TEXT NOT NULL,
+                        role TEXT NOT NULL
+                    )
+                ''')
+                
+                cursor.execute("SELECT id FROM users WHERE username = 'admin'")
+                if not cursor.fetchone():
+                    cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", ('admin', '123', 'admin'))
+            conn.commit()
+    except Exception as ex:
+        print("Database Init Error:", ex)
 
 init_db()
 
@@ -69,19 +68,17 @@ def main(page: ft.Page):
         txt_pass = ft.TextField(label="كلمة المرور", password=True, can_reveal_password=True, filled=True, border_radius=10, prefix_icon=ft.icons.LOCK, width=300)
 
         def handle_login(e):
-            u = txt_user.value.strip()
-            p = txt_pass.value.strip()
+            u = txt_user.value.strip() if txt_user.value else ""
+            p = txt_pass.value.strip() if txt_pass.value else ""
             if not u or not p:
                 page.open(ft.SnackBar(ft.Text("يرجى إدخال اسم المستخدم وكلمة المرور!"), bgcolor=ft.colors.RED_400))
                 return
 
             try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT role FROM users WHERE username = %s AND password = %s", (u, p))
-                res = cursor.fetchone()
-                cursor.close()
-                conn.close()
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT role FROM users WHERE username = %s AND password = %s", (u, p))
+                        res = cursor.fetchone()
 
                 if res:
                     current_user["username"] = u
@@ -91,6 +88,7 @@ def main(page: ft.Page):
                     page.open(ft.SnackBar(ft.Text("خطأ في اسم المستخدم أو كلمة المرور!"), bgcolor=ft.colors.RED_400))
             except Exception as ex:
                 print("Login error:", ex)
+                page.open(ft.SnackBar(ft.Text("حدث خطأ أثناء الاتصال بقاعدة البيانات!"), bgcolor=ft.colors.RED_400))
 
         login_card = ft.Card(
             elevation=5,
@@ -117,7 +115,8 @@ def main(page: ft.Page):
             )
         )
 
-        page.add(
+        page.views.clear()
+        page.views.append(
             ft.View(
                 route="/login",
                 controls=[
@@ -171,25 +170,23 @@ def main(page: ft.Page):
 
         def update_dashboard():
             try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='IN'")
-                res_in = cursor.fetchone()[0]
-                total_in = res_in if res_in is not None else 0.0
-                
-                cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='OUT'")
-                res_out = cursor.fetchone()[0]
-                total_out = res_out if res_out is not None else 0.0
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='IN'")
+                        res_in = cursor.fetchone()[0]
+                        total_in = res_in if res_in is not None else 0.0
+                        
+                        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='OUT'")
+                        res_out = cursor.fetchone()[0]
+                        total_out = res_out if res_out is not None else 0.0
                 
                 net = total_in - total_out
                 lbl_total_in.value = f"{total_in:,.0f} ج.م"
                 lbl_total_out.value = f"{total_out:,.0f} ج.م"
                 lbl_net.value = f"{net:,.0f} ج.م"
                 page.update()
-                cursor.close()
-                conn.close()
             except Exception as ex:
-                print("Error:", ex)
+                print("Dashboard Error:", ex)
 
         def add_transaction(e):
             if not txt_name.value or not txt_amount.value:
@@ -197,27 +194,30 @@ def main(page: ft.Page):
                 return
 
             try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT id FROM people WHERE name = %s", (txt_name.value.strip(),))
-                person = cursor.fetchone()
-                if person:
-                    person_id = person[0]
-                else:
-                    cursor.execute(
-                        "INSERT INTO people (name, nickname) VALUES (%s, %s) RETURNING id", 
-                        (txt_name.value.strip(), txt_nickname.value.strip() if txt_nickname.value else "")
-                    )
-                    person_id = cursor.fetchone()[0]
+                amount_val = float(txt_amount.value)
+            except ValueError:
+                page.open(ft.SnackBar(ft.Text("يرجى إدخال مبلغ صحيح!"), bgcolor=ft.colors.RED_400))
+                return
 
-                cursor.execute('''
-                    INSERT INTO transactions (person_id, amount, type, event_name, notes)
-                    VALUES (%s, %s, %s, %s, %s)
-                ''', (person_id, float(txt_amount.value), dropdown_type.value, txt_event.value, txt_notes.value))
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT id FROM people WHERE name = %s", (txt_name.value.strip(),))
+                        person = cursor.fetchone()
+                        if person:
+                            person_id = person[0]
+                        else:
+                            cursor.execute(
+                                "INSERT INTO people (name, nickname) VALUES (%s, %s) RETURNING id", 
+                                (txt_name.value.strip(), txt_nickname.value.strip() if txt_nickname.value else "")
+                            )
+                            person_id = cursor.fetchone()[0]
 
-                conn.commit()
-                cursor.close()
-                conn.close()
+                        cursor.execute('''
+                            INSERT INTO transactions (person_id, amount, type, event_name, notes)
+                            VALUES (%s, %s, %s, %s, %s)
+                        ''', (person_id, amount_val, dropdown_type.value, txt_event.value, txt_notes.value))
+                        conn.commit()
 
                 txt_name.value = ""
                 txt_nickname.value = ""
@@ -249,12 +249,10 @@ def main(page: ft.Page):
                 if not new_u.value or not new_p.value:
                     return
                 try:
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
+                            conn.commit()
                     page.close(dlg_users)
                     page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم بنجاح!"), bgcolor=ft.colors.GREEN_600))
                 except Exception as ex:
@@ -274,12 +272,10 @@ def main(page: ft.Page):
             def load_details(list_view):
                 list_view.controls.clear()
                 try:
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT id, amount, type, event_name, notes FROM transactions WHERE person_id = %s", (person_id,))
-                    trans_rows = cursor.fetchall()
-                    cursor.close()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute("SELECT id, amount, type, event_name, notes FROM transactions WHERE person_id = %s", (person_id,))
+                            trans_rows = cursor.fetchall()
 
                     for tr in trans_rows:
                         t_id, t_amount, t_type, t_event, t_notes = tr
@@ -287,15 +283,16 @@ def main(page: ft.Page):
                         txt_desc = f"{'جالي' if t_type=='IN' else 'دفعت'}: {t_amount:,.5g} ج.م | المناسبة: {t_event or 'بدون'}"
 
                         def delete_trans(e, tid=t_id):
-                            conn = get_db_connection()
-                            cursor = conn.cursor()
-                            cursor.execute("DELETE FROM transactions WHERE id = %s", (tid,))
-                            conn.commit()
-                            cursor.close()
-                            conn.close()
-                            load_details(details_list)
-                            update_dashboard()
-                            search_people()
+                            try:
+                                with get_db_connection() as conn:
+                                    with conn.cursor() as cursor:
+                                        cursor.execute("DELETE FROM transactions WHERE id = %s", (tid,))
+                                        conn.commit()
+                                load_details(details_list)
+                                update_dashboard()
+                                search_people()
+                            except Exception as ex:
+                                print("Delete transaction error:", ex)
 
                         list_view.controls.append(
                             ft.Container(
@@ -322,12 +319,10 @@ def main(page: ft.Page):
 
             def delete_person(e):
                 try:
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM people WHERE id = %s", (person_id,))
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        with conn.cursor() as cursor:
+                            cursor.execute("DELETE FROM people WHERE id = %s", (person_id,))
+                            conn.commit()
                     page.close(dlg_details)
                     update_dashboard()
                     search_people()
@@ -350,20 +345,21 @@ def main(page: ft.Page):
             query = txt_search.value.strip() if txt_search.value else ""
             
             try:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT p.id, p.name, p.nickname,
-                           COALESCE(SUM(CASE WHEN t.type='IN' THEN t.amount ELSE 0 END), 0) as total_in,
-                           COALESCE(SUM(CASE WHEN t.type='OUT' THEN t.amount ELSE 0 END), 0) as total_out
-                    FROM people p
-                    LEFT JOIN transactions t ON p.id = t.person_id
-                    WHERE p.name ILIKE %s OR p.nickname ILIKE %s
-                    GROUP BY p.id, p.name, p.nickname
-                    ORDER BY p.name ASC
-                ''', (f'%{query}%', f'%{query}%'))
-                
-                rows = cursor.fetchall()
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute('''
+                            SELECT p.id, p.name, p.nickname,
+                                   COALESCE(SUM(CASE WHEN t.type='IN' THEN t.amount ELSE 0 END), 0) as total_in,
+                                   COALESCE(SUM(CASE WHEN t.type='OUT' THEN t.amount ELSE 0 END), 0) as total_out
+                            FROM people p
+                            LEFT JOIN transactions t ON p.id = t.person_id
+                            WHERE p.name ILIKE %s OR p.nickname ILIKE %s
+                            GROUP BY p.id, p.name, p.nickname
+                            ORDER BY p.name ASC
+                        ''', (f'%{query}%', f'%{query}%'))
+                        
+                        rows = cursor.fetchall()
+
                 for row in rows:
                     p_id, name, nickname, p_in, p_out = row
                     balance = p_in - p_out
@@ -405,8 +401,6 @@ def main(page: ft.Page):
                             )
                         )
                     )
-                cursor.close()
-                conn.close()
                 page.update()
             except Exception as ex:
                 print("Search error:", ex)
@@ -498,7 +492,15 @@ def main(page: ft.Page):
             controls=controls_list
         )
 
-        page.add(main_layout)
+        page.views.clear()
+        page.views.append(
+            ft.View(
+                route="/main",
+                appbar=page.appbar,
+                controls=[main_layout]
+            )
+        )
+        page.update()
         update_dashboard()
         search_people()
 
