@@ -57,7 +57,7 @@ def main(page: ft.Page):
     lbl_total_out = ft.Text("0 ج.م", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.RED_700)
     lbl_net = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.INDIGO_700)
 
-    # عناصر إدخال البيانات بتصميم عصري وخلفية بارزة
+    # عناصر إدخال البيانات
     txt_name = ft.TextField(label="الاسم الكامل", filled=True, border_radius=10, prefix_icon=ft.icons.PERSON)
     txt_nickname = ft.TextField(label="اسم الشهرة", filled=True, border_radius=10, prefix_icon=ft.icons.TAG)
     txt_amount = ft.TextField(label="المبلغ (ج.م)", keyboard_type=ft.KeyboardType.NUMBER, filled=True, border_radius=10, prefix_icon=ft.icons.MONETIZATION_ON)
@@ -146,6 +146,109 @@ def main(page: ft.Page):
         except Exception as ex:
             page.open(ft.SnackBar(ft.Text(f"حدث خطأ: {ex}"), bgcolor=ft.colors.RED_400))
 
+    # --- نافذة تعديل أو إضافة معاملة للشخص ---
+    def open_adjust_dialog(person_id, person_name):
+        dlg_amount = ft.TextField(label="المبلغ (ج.م)", keyboard_type=ft.KeyboardType.NUMBER, filled=True, border_radius=10)
+        dlg_type = ft.Dropdown(
+            label="نوع الحركة",
+            filled=True,
+            border_radius=10,
+            options=[
+                ft.dropdown.Option("IN", "جالي منه نقطة (إضافة للوارد)"),
+                ft.dropdown.Option("OUT", "دفعت له نقطة / سداد (إضافة للصادر)"),
+            ],
+            value="OUT"
+        )
+        dlg_event = ft.TextField(label="المناسبة (مثال: فرحه / مناسبة كذا)", filled=True, border_radius=10)
+        dlg_notes = ft.TextField(label="ملاحظات", filled=True, border_radius=10)
+
+        def save_adjustment(e):
+            if not dlg_amount.value:
+                return
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO transactions (person_id, amount, type, event_name, notes)
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (person_id, float(dlg_amount.value), dlg_type.value, dlg_event.value, dlg_notes.value))
+                conn.commit()
+                cursor.close()
+                conn.close()
+
+                page.close(dialog)
+                page.open(ft.SnackBar(ft.Text(f"تم تحديث حساب {person_name} بنجاح!"), bgcolor=ft.colors.GREEN_600))
+                update_dashboard()
+                search_people()
+            except Exception as ex:
+                print(ex)
+
+        dialog = ft.AlertDialog(
+            title=ft.Text(f"تسجيل حركة لـ: {person_name}", size=16, weight=ft.FontWeight.BOLD),
+            content=ft.Column([
+                dlg_amount,
+                dlg_type,
+                dlg_event,
+                dlg_notes
+            ], tight=True, spacing=10),
+            actions=[
+                ft.TextButton("إلغاء", on_click=lambda e: page.close(dialog)),
+                ft.ElevatedButton("حفظ", on_click=save_adjustment, bgcolor=ft.colors.INDIGO_700, color=ft.colors.WHITE)
+            ],
+        )
+        page.open(dialog)
+
+    # --- عرض تفاصيل حركات الشخص عند الضغط عليه ---
+    def show_person_details(person_id, name, nickname):
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT amount, type, event_name, notes FROM transactions WHERE person_id = %s", (person_id,))
+            trans_rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            details_list = ft.ListView(expand=True, spacing=8, height=250)
+            for tr in trans_rows:
+                t_amount, t_type, t_event, t_notes = tr
+                if t_type == 'IN':
+                    txt_desc = f"جالي منه: {t_amount:,.5g} ج.م | المناسبة: {t_event or 'بدون مناسبة'}"
+                    c_color = ft.colors.GREEN_700
+                    icon_t = ft.icons.ARROW_DOWNWARD
+                else:
+                    txt_desc = f"دفعت له (سداد): {t_amount:,.5g} ج.م | المناسبة: {t_event or 'بدون مناسبة'}"
+                    c_color = ft.colors.RED_700
+                    icon_t = ft.icons.ARROW_UPWARD
+
+                details_list.controls.append(
+                    ft.Container(
+                        padding=10,
+                        bgcolor=ft.colors.GREY_100,
+                        border_radius=8,
+                        content=ft.Row([
+                            ft.Icon(icon_t, color=c_color, size=20),
+                            ft.Column([
+                                ft.Text(txt_desc, weight=ft.FontWeight.BOLD, size=13, color=c_color),
+                                ft.Text(f"ملاحظات: {t_notes or 'لا توجد'}", size=11, color=ft.colors.GREY_600)
+                            ], spacing=2, expand=True)
+                        ])
+                    )
+                )
+
+            if not trans_rows:
+                details_list.controls.append(ft.Text("لا توجد حركات مسجلة بعد."))
+
+            dlg_details = ft.AlertDialog(
+                title=ft.Text(f"سجل معاملات: {name} ({nickname or 'بدون لقب'})", size=15, weight=ft.FontWeight.BOLD),
+                content=ft.Container(content=details_list, width=400),
+                actions=[
+                    ft.TextButton("إغلاق", on_click=lambda e: page.close(dlg_details))
+                ]
+            )
+            page.open(dlg_details)
+        except Exception as ex:
+            print("Details error:", ex)
+
     # --- البحث ---
     def search_people():
         results_list.controls.clear()
@@ -172,14 +275,14 @@ def main(page: ft.Page):
                 balance = p_in - p_out
                 
                 if balance > 0:
-                    status_text = f"عليك له: {balance:,.0f} ج.م"
+                    status_text = f"عليك له (متبقي): {balance:,.0f} ج.م"
                     status_color = ft.colors.RED_700
                 elif balance < 0:
-                    status_text = f"له عندك: {abs(balance):,.0f} ج.م"
+                    status_text = f"له عندك (متبقي): {abs(balance):,.0f} ج.م"
                     status_color = ft.colors.GREEN_700
                 else:
-                    status_text = "الحساب متخلص تماماً (0)"
-                    status_color = ft.colors.GREY_700
+                    status_text = "✨ الحساب خالص تماماً (مصفّر)"
+                    status_color = ft.colors.BLUE_700
 
                 results_list.controls.append(
                     ft.Card(
@@ -195,8 +298,21 @@ def main(page: ft.Page):
                                 ft.Divider(height=1, color=ft.colors.GREY_200),
                                 ft.Row([
                                     ft.Text(status_text, weight=ft.FontWeight.BOLD, color=status_color),
-                                    ft.Text(f"وارد: {p_in:,.0f} | صادر: {p_out:,.0f}", size=11, color=ft.colors.GREY_500),
+                                    ft.Text(f"جالي: {p_in:,.0f} | دفعت: {p_out:,.0f}", size=11, color=ft.colors.GREY_500),
                                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                ft.Row([
+                                    ft.TextButton(
+                                        "عرض التفاصيل والمناسبات",
+                                        icon=ft.icons.LIST_ALT,
+                                        on_click=lambda e, pid=p_id, pname=name, pnick=nickname: show_person_details(pid, pname, pnick),
+                                    ),
+                                    ft.OutlinedButton(
+                                        "إضافة / سداد",
+                                        icon=ft.icons.EDIT,
+                                        on_click=lambda e, pid=p_id, pname=name: open_adjust_dialog(pid, pname),
+                                        style=ft.ButtonStyle(color=ft.colors.INDIGO_700)
+                                    )
+                                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                             ])
                         )
                     )
@@ -207,7 +323,7 @@ def main(page: ft.Page):
         except Exception as ex:
             print("Search error:", ex)
 
-    # --- بناء الواجهة عبر البطاقات المنظمة ---
+    # --- بناء الواجهة ---
     dashboard_card = ft.Card(
         elevation=4,
         color=ft.colors.WHITE,
@@ -274,7 +390,7 @@ def main(page: ft.Page):
                 ft.Divider(color=ft.colors.INDIGO_100),
                 txt_search,
                 ft.SizedBox(height: 10),
-                ft.Container(content=results_list, height=260)
+                ft.Container(content=results_list, height=300)
             ], spacing=10)
         )
     )
