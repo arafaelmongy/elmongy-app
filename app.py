@@ -515,4 +515,4 @@ def main(page: ft.Page):
     show_login_screen()
 
 if __name__ == "__main__":
-    ft.run(main, port=int(os.environ.get("PORT", 8080)))
+    ft.app(target=main, port=int(os.environ.get("PORT", 8080)))
