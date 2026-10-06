@@ -1,6 +1,8 @@
 import os
 import psycopg
 import flet as ft
+from fpdf import FPDF
+import tempfile
 
 # --- 1. إعداد قاعدة البيانات السحابية (Supabase) ---
 DB_URL = os.environ.get(
@@ -164,7 +166,6 @@ def main(page: ft.Page):
             except Exception as ex:
                 print("Dashboard Error:", ex)
 
-        # لوحة الداش بورد (اجمالي الوارد والصادر فقط)
         dashboard_card = ft.Card(
             elevation=4,
             color=ft.Colors.WHITE,
@@ -183,11 +184,9 @@ def main(page: ft.Page):
             )
         )
 
-        # التحقق من الصلاحيات للقراءة فقط أو كامل الصلاحيات
         user_role = current_user["role"]
         is_read_only = (user_role == "read_only")
 
-        # أزرار الصفحة الرئيسية
         btn_add_in = ft.ElevatedButton(
             "إضافة نقطة (وارد)",
             icon=ft.icons.ADD_CIRCLE,
@@ -242,7 +241,6 @@ def main(page: ft.Page):
 
         controls_list = [dashboard_card, btn_add_in, btn_add_out, btn_list_in, btn_list_out, btn_search]
 
-        # زر المستخدمين يظهر فقط للمدير أو بناءً على الصلاحيات
         if user_role == "admin" or user_role == "manage_users":
             btn_users = ft.ElevatedButton(
                 "إدارة المستخدمين والصلاحيات",
@@ -273,7 +271,6 @@ def main(page: ft.Page):
         page.update()
         update_totals()
 
-    # --- صفحة إضافة نقطة أو صادر ---
     def show_add_transaction_page(t_type):
         title_text = "إضافة نقطة (واردة)" if t_type == "IN" else "إضافة صادر"
         
@@ -341,12 +338,13 @@ def main(page: ft.Page):
         )
         page.update()
 
-    # --- صفحة الحصر (وارد أو صادر) ---
     def show_report_page(t_type):
         title_text = "حصر أسماء النقطة الواردة" if t_type == "IN" else "حصر الصادر"
         report_list = ft.ListView(expand=True, spacing=10)
+        rows_data = []
 
         def load_report():
+            nonlocal rows_data
             report_list.controls.clear()
             try:
                 with get_db_connection() as conn:
@@ -358,9 +356,9 @@ def main(page: ft.Page):
                             WHERE t.type = %s
                             ORDER BY p.name ASC
                         ''', (t_type,))
-                        rows = cursor.fetchall()
+                        rows_data = cursor.fetchall()
 
-                for r in rows:
+                for r in rows_data:
                     p_name, p_nick, amount, event_n, notes = r
                     report_list.controls.append(
                         ft.Card(
@@ -374,7 +372,7 @@ def main(page: ft.Page):
                             )
                         )
                     )
-                if not rows:
+                if not rows_data:
                     report_list.controls.append(ft.Text("لا توجد بيانات مسجلة."))
                 page.update()
             except Exception as ex:
@@ -382,8 +380,28 @@ def main(page: ft.Page):
 
         load_report()
 
-        def export_pdf_excel(e):
-            page.open(ft.SnackBar(ft.Text("تم تجهيز وحفظ الكشف بنجاح! 📄📊"), bgcolor=ft.Colors.GREEN_600))
+        def export_pdf_only(e):
+            try:
+                pdf = FPDF()
+                pdf.add_page()
+                # استخدام خط افتراضي يدعم الحروف أو كتابة عناوين واضحة
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(200, 10, txt=title_text, ln=True, align="C")
+                pdf.ln(10)
+                
+                pdf.set_font("Arial", "", 11)
+                for r in rows_data:
+                    p_name, p_nick, amount, event_n, notes = r
+                    line_text = f"Name: {p_name} | Nickname: {p_nick or '-'} | Amount: {amount} LE | Event: {event_n or '-'}"
+                    pdf.cell(200, 8, txt=line_text, ln=True)
+
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    pdf.output(tmp.name)
+                    page.launch_url(tmp.name)
+                
+                page.open(ft.SnackBar(ft.Text("تم إنشاء وحفظ ملف الـ PDF بنجاح! 📄"), bgcolor=ft.Colors.GREEN_600))
+            except Exception as ex:
+                page.open(ft.SnackBar(ft.Text(f"خطأ أثناء تصدير الـ PDF: {ex}"), bgcolor=ft.Colors.RED_400))
 
         page.views.clear()
         page.views.append(
@@ -395,7 +413,7 @@ def main(page: ft.Page):
                         padding=15,
                         content=ft.Column([
                             ft.Row([
-                                ft.ElevatedButton("حفظ الكشف PDF / Excel", icon=ft.icons.DOWNLOAD, on_click=export_pdf_excel, bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE),
+                                ft.ElevatedButton("حفظ كشف PDF فقط", icon=ft.icons.PICTURE_AS_PDF, on_click=export_pdf_only, bgcolor=ft.Colors.RED_800, color=ft.Colors.WHITE),
                                 ft.ElevatedButton("رجوع", icon=ft.icons.ARROW_BACK, on_click=lambda e: show_main_dashboard(), bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
                             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             ft.Divider(),
@@ -407,7 +425,6 @@ def main(page: ft.Page):
         )
         page.update()
 
-    # --- صفحة البحث وكشف الحسابات وإضافة العمليات المباشرة ---
     def show_search_page():
         txt_search = ft.TextField(label="اكتب اسم الشخص للبحث...", filled=True, border_radius=10, prefix_icon=ft.icons.SEARCH)
         results_col = ft.ListView(expand=True, spacing=10)
@@ -444,7 +461,6 @@ def main(page: ft.Page):
                         status_text = "✨ تم الانتهاء أو التصفية (خالص تماماً)"
                         status_color = ft.colors.BLUE_700
 
-                    # زر إضافة صادر أو وارد لهذا الشخص مباشرة
                     def make_action(pid, pname, ptype):
                         return lambda ev: open_quick_trans_dialog(pid, pname, ptype)
 
@@ -523,26 +539,78 @@ def main(page: ft.Page):
         )
         page.update()
 
-    # --- إدارة المستخدمين والصلاحيات ---
     def open_manage_users_dialog(e):
-        new_u = ft.TextField(label="اسم المستخدم الجديد", filled=True, border_radius=10)
-        new_p = ft.TextField(label="كلمة المرور", password=True, can_reveal_password=True, filled=True, border_radius=10)
+        users_list_col = ft.ListView(expand=True, spacing=10, height=200)
+        txt_user_search = ft.TextField(label="بحث عن مستخدم...", filled=True, border_radius=10, dense=True)
+
+        def load_users_list(query=""):
+            users_list_col.controls.clear()
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT id, username, role, password FROM users WHERE username ILIKE %s", (f'%{query}%',))
+                        users = cursor.fetchall()
+
+                for u_id, uname, urole, upass in users:
+                    
+                    def update_user_click(uid, u_box, r_box):
+                        return lambda ev: save_user_changes(uid, u_box.value, r_box.value)
+
+                    u_pass_field = ft.TextField(value=upass, label="كلمة المرور الجديدة", password=True, can_reveal_password=True, dense=True)
+                    r_dropdown = ft.Dropdown(
+                        value=urole,
+                        dense=True,
+                        options=[
+                            ft.dropdown.Option("admin", "مدير"),
+                            ft.dropdown.Option("edit", "تعديل"),
+                            ft.dropdown.Option("read_only", "قراءة فقط"),
+                        ]
+                    )
+
+                    users_list_col.controls.append(
+                        ft.Card(
+                            content=ft.Container(
+                                padding=10,
+                                content=ft.Column([
+                                    ft.Text(f"المستخدم: {uname}", weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900),
+                                    u_pass_field,
+                                    r_dropdown,
+                                    ft.ElevatedButton("حفظ التعديل", icon=ft.icons.SAVE, on_click=lambda ev, uid=u_id, up=u_pass_field, rd=r_dropdown: save_user_changes(uid, up.value, rd.value), bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+                                ], spacing=5)
+                            )
+                        )
+                    )
+                page.update()
+            except Exception as ex:
+                print("Load users error:", ex)
+
+        def save_user_changes(uid, new_pass, new_role):
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("UPDATE users SET password = %s, role = %s WHERE id = %s", (new_pass.strip(), new_role, uid))
+                        conn.commit()
+                page.open(ft.SnackBar(ft.Text("تم تعديل بيانات المستخدم بنجاح!"), bgcolor=ft.Colors.GREEN_600))
+                load_users_list(txt_user_search.value)
+            except Exception as ex:
+                page.open(ft.SnackBar(ft.Text(f"خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
+
+        txt_user_search.on_change = lambda ev: load_users_list(txt_user_search.value)
+        load_users_list()
+
+        new_u = ft.TextField(label="اسم المستخدم الجديد", filled=True, border_radius=10, dense=True)
+        new_p = ft.TextField(label="كلمة المرور", password=True, can_reveal_password=True, filled=True, border_radius=10, dense=True)
         new_role = ft.Dropdown(
             label="تحديد الصلاحيات",
             filled=True,
             border_radius=10,
+            dense=True,
             options=[
                 ft.dropdown.Option("admin", "مدير كامل الصلاحيات (Admin)"),
                 ft.dropdown.Option("edit", "تعديل وحذف وإضافة"),
                 ft.dropdown.Option("read_only", "قراءة فقط وبحث"),
             ],
             value="read_only"
-        )
-
-        dlg_users = ft.AlertDialog(
-            title=ft.Text("إدارة المستخدمين والصلاحيات", weight=ft.FontWeight.BOLD),
-            content=ft.Column([new_u, new_p, new_role], tight=True, spacing=10),
-            actions=[]
         )
 
         def save_new_user(ev):
@@ -553,15 +621,28 @@ def main(page: ft.Page):
                     with conn.cursor() as cursor:
                         cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
                         conn.commit()
-                page.close(dlg_users)
+                new_u.value = ""
+                new_p.value = ""
+                load_users_list()
                 page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم وصلاحياته بنجاح!"), bgcolor=ft.Colors.GREEN_600))
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text("اسم المستخدم موجود مسبقاً أو حدث خطأ!"), bgcolor=ft.Colors.RED_400))
 
-        dlg_users.actions = [
-            ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_users)),
-            ft.ElevatedButton("حفظ المستخدم", on_click=save_new_user, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
-        ]
+        dlg_users = ft.AlertDialog(
+            title=ft.Text("إدارة المستخدمين والبحث", weight=ft.FontWeight.BOLD),
+            content=ft.Column([
+                ft.Text("إضافة مستخدم جديد:", weight=ft.FontWeight.BOLD, size=14),
+                new_u, new_p, new_role,
+                ft.ElevatedButton("حفظ المستخدم الجديد", on_click=save_new_user, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+                ft.Divider(),
+                ft.Text("بحث وتعديل المستخدمين الحاليين:", weight=ft.FontWeight.BOLD, size=14),
+                txt_user_search,
+                users_list_col
+            ], tight=True, spacing=10, scroll=ft.ScrollMode.AUTO),
+            actions=[
+                ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_users))
+            ]
+        )
         page.open(dlg_users)
 
     show_login_screen()
