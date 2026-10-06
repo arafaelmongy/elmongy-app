@@ -15,7 +15,6 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # جدول الأشخاص
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS people (
             id SERIAL PRIMARY KEY,
@@ -23,7 +22,6 @@ def init_db():
             nickname TEXT
         )
     ''')
-    # جدول المعاملات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY,
@@ -35,7 +33,6 @@ def init_db():
             FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
         )
     ''')
-    # جدول المستخدمين والصلاحيات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -45,7 +42,6 @@ def init_db():
         )
     ''')
     
-    # إنشاء حساب أدمن افتراضي إذا لم يكن موجوداً
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
     if not cursor.fetchone():
         cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", ('admin', '123', 'admin'))
@@ -56,7 +52,6 @@ def init_db():
 
 init_db()
 
-# --- 2. التطبيق الرئيسي ---
 def main(page: ft.Page):
     page.title = "برنامج النقطة والواجب - نظام الصلاحيات"
     page.rtl = True
@@ -66,7 +61,6 @@ def main(page: ft.Page):
 
     current_user = {"username": "", "role": ""}
 
-    # --- شاشة تسجيل الدخول ---
     def show_login_screen():
         page.clean()
         page.appbar = None
@@ -138,7 +132,6 @@ def main(page: ft.Page):
         )
         page.update()
 
-    # --- الواجهة الرئيسية بعد تسجيل الدخول ---
     def show_main_app():
         page.clean()
         
@@ -238,7 +231,6 @@ def main(page: ft.Page):
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text(f"حدث خطأ: {ex}"), bgcolor=ft.colors.RED_400))
 
-        # --- نافذة إضافة مستخدمين جديد للصلاحيات (للأدمن فقط) ---
         def open_manage_users_dialog(e):
             new_u = ft.TextField(label="اسم المستخدم الجديد", filled=True, border_radius=10)
             new_p = ft.TextField(label="كلمة المرور", password=True, can_reveal_password=True, filled=True, border_radius=10)
@@ -278,7 +270,6 @@ def main(page: ft.Page):
             )
             page.open(dlg_users)
 
-        # --- عرض تفاصيل المعاملات مع إمكانية التعديل والحذف ---
         def show_person_details(person_id, name, nickname):
             def load_details(list_view):
                 list_view.controls.clear()
@@ -490,7 +481,6 @@ def main(page: ft.Page):
 
         controls_list = [dashboard_card, form_card, search_card]
 
-        # زر إضافي للأدمن فقط لفتح شاشة إدارة المستخدمين
         if current_user["role"] == "admin":
             controls_list.insert(0, ft.ElevatedButton(
                 "إدارة المستخدمين والصلاحيات (Admin)",
@@ -512,7 +502,6 @@ def main(page: ft.Page):
         update_dashboard()
         search_people()
 
-    # بدء التطبيق بعرض شاشة تسجيل الدخول
     show_login_screen()
 
 if __name__ == "__main__":
