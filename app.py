@@ -207,5 +207,4 @@ def main(page: ft.Page):
     update_dashboard()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    ft.app(target=main, port=port, view=None)
+    ft.app(target=main)
