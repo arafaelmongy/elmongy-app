@@ -3,7 +3,6 @@ import psycopg
 import flet as ft
 
 # --- 1. إعداد قاعدة البيانات السحابية (Supabase) ---
-# تم تعديل المنفذ إلى 6543 المتوافق مع Session/Transaction Pooler
 DB_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql://postgres.retdoibqivicmibmzpnd:Arafa.452025.1132000.122000@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
@@ -47,9 +46,9 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.AUTO
 
     # عناصر الواجهة - الداش بورد
-    lbl_total_in = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN)
-    lbl_total_out = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.RED)
-    lbl_net = ft.Text("0 ج.م", size=22, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE)
+    lbl_total_in = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.GREEN)
+    lbl_total_out = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.RED)
+    lbl_net = ft.Text("0 ج.م", size=22, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE)
 
     # عناصر إدخال البيانات
     txt_name = ft.TextField(label="الاسم الكامل", width=300)
@@ -165,7 +164,7 @@ def main(page: ft.Page):
                         padding=10,
                         content=ft.Column([
                             ft.Text(f"{name} ({nickname or 'بدون لقب'})", weight=ft.FontWeight.BOLD),
-                            ft.Text(status_text, color=ft.Colors.RED if balance > 0 else ft.Colors.GREEN),
+                            ft.Text(status_text, color=ft.colors.RED if balance > 0 else ft.colors.GREEN),
                         ])
                     )
                 )
@@ -197,7 +196,7 @@ def main(page: ft.Page):
         dropdown_type,
         txt_event,
         txt_notes,
-        ft.ElevatedButton("حفظ النقطة", on_click=add_transaction, bgcolor=ft.Colors.BLUE, color=ft.Colors.WHITE),
+        ft.ElevatedButton("حفظ النقطة", on_click=add_transaction, bgcolor=ft.colors.BLUE, color=ft.colors.WHITE),
         ft.Divider(),
         ft.Text("البحث وكشف الحسابات", size=16, weight=ft.FontWeight.BOLD),
         txt_search,
