@@ -380,31 +380,46 @@ def main(page: ft.Page):
 
         def export_pdf_direct(e):
             try:
-                report_text = f"=== {title_text} ===\n\n"
+                table_rows = []
                 for r in rows_data:
                     p_name, p_nick, amount, event_n, notes = r
-                    report_text += f"• الاسم: {p_name} | الشهرة: {p_nick or '-'} | المبلغ: {amount:,.0f} ج.م | المناسبة: {event_n or '-'}\n"
+                    table_rows.append(
+                        ft.DataRow(
+                            cells=[
+                                ft.DataCell(ft.Text(str(p_name))),
+                                ft.DataCell(ft.Text(str(p_nick or '-'))),
+                                ft.DataCell(ft.Text(f"{amount:,.0f} ج.م")),
+                                ft.DataCell(ft.Text(str(event_n or '-'))),
+                            ]
+                        )
+                    )
 
-                txt_report_box = ft.TextField(
-                    value=report_text,
-                    multiline=True,
-                    read_only=True,
-                    min_lines=10,
-                    max_lines=15,
-                    text_size=14
-                )
+                data_table = ft.DataTable(
+                    columns=[
+                        ft.DataColumn(ft.Text("الاسم")),
+                        ft.DataColumn(ft.Text("الشهرة")),
+                        ft.DataColumn(ft.Text("المبلغ")),
+                        ft.DataColumn(ft.Text("المناسبة")),
+                    ],
+                    rows=table_rows,
+                    border=ft.border.all(1, ft.Colors.GREY_400),
+                    vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_300),
+                    horizontal_lines=ft.border.BorderSide(1, ft.Colors.GREY_300),
+                ]
 
-                dlg_report = ft.AlertDialog(
-                    title=ft.Text("كشف الحساب الجاهز للنسخ أو الطباعة"),
-                    content=ft.Column([
-                        ft.Text("يمكنك تحديد النص أدناه ونسخه أو طباعته بكل سهولة:", size=13, color=ft.Colors.GREY_700),
-                        txt_report_box
-                    ], tight=True, width=500),
+                dlg_table = ft.AlertDialog(
+                    title=ft.Text(f"جدول {title_text}"),
+                    content=ft.Container(
+                        content=ft.Column([
+                            ft.Text("معاينة جدول البيانات:", size=13, color=ft.Colors.GREY_700),
+                            ft.Container(content=data_table, height=350, width=600)
+                        ], tight=True),
+                    ),
                     actions=[
-                        ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_report))
+                        ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_table))
                     ]
                 )
-                page.open(dlg_report)
+                page.open(dlg_table)
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text(f"خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
 
@@ -418,7 +433,7 @@ def main(page: ft.Page):
                         padding=15,
                         content=ft.Column([
                             ft.Row([
-                                ft.ElevatedButton("عرض كشف الحساب (طباعة/نسخ)", icon=ft.icons.PRINT, on_click=export_pdf_direct, bgcolor=ft.Colors.RED_800, color=ft.Colors.WHITE),
+                                ft.ElevatedButton("عرض كشف الحساب (جدول)", icon=ft.icons.TABLE_CHART, on_click=export_pdf_direct, bgcolor=ft.Colors.RED_800, color=ft.Colors.WHITE),
                                 ft.ElevatedButton("رجوع", icon=ft.icons.ARROW_BACK, on_click=lambda e: show_main_dashboard(), bgcolor=ft.Colors.GREY_700, color=ft.Colors.WHITE)
                             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             ft.Divider(),
