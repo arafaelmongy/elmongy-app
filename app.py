@@ -71,7 +71,7 @@ def main(page: ft.Page):
             u = txt_user.value.strip() if txt_user.value else ""
             p = txt_pass.value.strip() if txt_pass.value else ""
             if not u or not p:
-                page.open(ft.SnackBar(ft.Text("يرجى إدخال اسم المستخدم وكلمة المرور!"), bgcolor=ft.colors.RED_400))
+                page.open(ft.SnackBar(ft.Text("يرجى إدخال اسم المستخدم وكلمة المرور!"), bgcolor=ft.Colors.RED_400))
                 return
 
             try:
@@ -85,20 +85,20 @@ def main(page: ft.Page):
                     current_user["role"] = res[0]
                     show_main_app()
                 else:
-                    page.open(ft.SnackBar(ft.Text("خطأ في اسم المستخدم أو كلمة المرور!"), bgcolor=ft.colors.RED_400))
+                    page.open(ft.SnackBar(ft.Text("خطأ في اسم المستخدم أو كلمة المرور!"), bgcolor=ft.Colors.RED_400))
             except Exception as ex:
                 print("Login error:", ex)
-                page.open(ft.SnackBar(ft.Text("حدث خطأ أثناء الاتصال بقاعدة البيانات!"), bgcolor=ft.colors.RED_400))
+                page.open(ft.SnackBar(ft.Text("حدث خطأ أثناء الاتصال بقاعدة البيانات!"), bgcolor=ft.Colors.RED_400))
 
         login_card = ft.Card(
             elevation=5,
-            color=ft.colors.WHITE,
+            color=ft.Colors.WHITE,
             content=ft.Container(
                 padding=30,
                 content=ft.Column([
-                    ft.Icon(ft.icons.LOCK_PERSON, size=50, color=ft.colors.INDIGO_700),
-                    ft.Text("تسجيل الدخول للنظام", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.INDIGO_900),
-                    ft.Divider(color=ft.colors.INDIGO_100),
+                    ft.Icon(ft.icons.LOCK_PERSON, size=50, color=ft.Colors.INDIGO_700),
+                    ft.Text("تسجيل الدخول للنظام", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900),
+                    ft.Divider(color=ft.Colors.INDIGO_100),
                     txt_user,
                     txt_pass,
                     ft.Container(height=10),
@@ -106,8 +106,8 @@ def main(page: ft.Page):
                         "دخول",
                         icon=ft.icons.LOGIN,
                         on_click=handle_login,
-                        bgcolor=ft.colors.INDIGO_700,
-                        color=ft.colors.WHITE,
+                        bgcolor=ft.Colors.INDIGO_700,
+                        color=ft.Colors.WHITE,
                         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
                         width=300
                     )
@@ -124,7 +124,7 @@ def main(page: ft.Page):
                         content=login_card,
                         alignment=ft.alignment.center,
                         expand=True,
-                        bgcolor=ft.colors.GREY_100
+                        bgcolor=ft.Colors.GREY_100
                     )
                 ]
             )
@@ -135,17 +135,17 @@ def main(page: ft.Page):
         page.clean()
         
         page.appbar = ft.AppBar(
-            title=ft.Text(f"برنامج النقطة والواجب ({current_user['username']} - {current_user['role']})", color=ft.colors.WHITE, weight=ft.FontWeight.BOLD),
+            title=ft.Text(f"برنامج النقطة والواجب ({current_user['username']} - {current_user['role']})", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
             center_title=True,
-            bgcolor=ft.colors.INDIGO_700,
+            bgcolor=ft.Colors.INDIGO_700,
             actions=[
-                ft.IconButton(ft.icons.LOGOUT, tooltip="تسجيل الخروج", icon_color=ft.colors.WHITE, on_click=lambda e: show_login_screen())
+                ft.IconButton(ft.icons.LOGOUT, tooltip="تسجيل الخروج", icon_color=ft.Colors.WHITE, on_click=lambda e: show_login_screen())
             ]
         )
 
-        lbl_total_in = ft.Text("0 ج.م", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.GREEN_700)
-        lbl_total_out = ft.Text("0 ج.م", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.RED_700)
-        lbl_net = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.INDIGO_700)
+        lbl_total_in = ft.Text("0 ج.م", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+        lbl_total_out = ft.Text("0 ج.م", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_700)
+        lbl_net = ft.Text("0 ج.م", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700)
 
         txt_name = ft.TextField(label="الاسم الكامل", filled=True, border_radius=10, prefix_icon=ft.icons.PERSON)
         txt_nickname = ft.TextField(label="اسم الشهرة", filled=True, border_radius=10, prefix_icon=ft.icons.TAG)
@@ -190,13 +190,13 @@ def main(page: ft.Page):
 
         def add_transaction(e):
             if not txt_name.value or not txt_amount.value:
-                page.open(ft.SnackBar(ft.Text("يرجى إدخال الاسم والمبلغ على الأقل!"), bgcolor=ft.colors.RED_400))
+                page.open(ft.SnackBar(ft.Text("يرجى إدخال الاسم والمبلغ على الأقل!"), bgcolor=ft.Colors.RED_400))
                 return
 
             try:
                 amount_val = float(txt_amount.value)
             except ValueError:
-                page.open(ft.SnackBar(ft.Text("يرجى إدخال مبلغ صحيح!"), bgcolor=ft.colors.RED_400))
+                page.open(ft.SnackBar(ft.Text("يرجى إدخال مبلغ صحيح!"), bgcolor=ft.Colors.RED_400))
                 return
 
             try:
@@ -225,11 +225,11 @@ def main(page: ft.Page):
                 txt_event.value = ""
                 txt_notes.value = ""
                 
-                page.open(ft.SnackBar(ft.Text("تم تسجيل النقطة بنجاح! 🎉"), bgcolor=ft.colors.GREEN_600))
+                page.open(ft.SnackBar(ft.Text("تم تسجيل النقطة بنجاح! 🎉"), bgcolor=ft.Colors.GREEN_600))
                 update_dashboard()
                 search_people()
             except Exception as ex:
-                page.open(ft.SnackBar(ft.Text(f"حدث خطأ: {ex}"), bgcolor=ft.colors.RED_400))
+                page.open(ft.SnackBar(ft.Text(f"حدث خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
 
         def open_manage_users_dialog(e):
             new_u = ft.TextField(label="اسم المستخدم الجديد", filled=True, border_radius=10)
@@ -254,16 +254,16 @@ def main(page: ft.Page):
                             cursor.execute("INSERT INTO users (username, password, role) VALUES (%s, %s, %s)", (new_u.value.strip(), new_p.value.strip(), new_role.value))
                             conn.commit()
                     page.close(dlg_users)
-                    page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم بنجاح!"), bgcolor=ft.colors.GREEN_600))
+                    page.open(ft.SnackBar(ft.Text("تم إضافة المستخدم بنجاح!"), bgcolor=ft.Colors.GREEN_600))
                 except Exception as ex:
-                    page.open(ft.SnackBar(ft.Text("اسم المستخدم موجود مسبقاً أو حدث خطأ!"), bgcolor=ft.colors.RED_400))
+                    page.open(ft.SnackBar(ft.Text("اسم المستخدم موجود مسبقاً أو حدث خطأ!"), bgcolor=ft.Colors.RED_400))
 
             dlg_users = ft.AlertDialog(
                 title=ft.Text("إدارة المستخدمين والصلاحيات", weight=ft.FontWeight.BOLD),
                 content=ft.Column([new_u, new_p, new_role], tight=True, spacing=10),
                 actions=[
                     ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_users)),
-                    ft.ElevatedButton("حفظ المستخدم", on_click=save_new_user, bgcolor=ft.colors.INDIGO_700, color=ft.colors.WHITE)
+                    ft.ElevatedButton("حفظ المستخدم", on_click=save_new_user, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
                 ]
             )
             page.open(dlg_users)
@@ -302,7 +302,7 @@ def main(page: ft.Page):
                                 content=ft.Row([
                                     ft.Column([
                                         ft.Text(txt_desc, weight=ft.FontWeight.BOLD, size=12, color=c_color),
-                                        ft.Text(f"ملاحظات: {t_notes or 'لا توجد'}", size=10, color=ft.colors.GREY_600)
+                                        ft.Text(f"ملاحظات: {t_notes or 'لا توجد'}", size=10, color=ft.Colors.GREY_600)
                                     ], expand=True),
                                     ft.IconButton(ft.icons.DELETE, icon_color=ft.colors.RED, icon_size=18, on_click=delete_trans, tooltip="حذف الحركة")
                                 ])
@@ -326,7 +326,7 @@ def main(page: ft.Page):
                     page.close(dlg_details)
                     update_dashboard()
                     search_people()
-                    page.open(ft.SnackBar(ft.Text("تم حذف الشخص وكل معاملاته!"), bgcolor=ft.colors.GREEN_600))
+                    page.open(ft.SnackBar(ft.Text("تم حذف الشخص وكل معاملاته!"), bgcolor=ft.Colors.GREEN_600))
                 except Exception as ex:
                     print(ex)
 
@@ -334,7 +334,7 @@ def main(page: ft.Page):
                 title=ft.Text(f"سجل: {name} ({nickname or 'بدون لقب'})", size=15, weight=ft.FontWeight.BOLD),
                 content=ft.Container(content=details_list, width=400),
                 actions=[
-                    ft.TextButton("حذف الشخص بالكامل", icon=ft.icons.DELETE_FOREVER, icon_color=ft.colors.RED, on_click=delete_person),
+                    ft.TextButton("حذف الشخص بالكامل", icon=ft.icons.DELETE_FOREVER, icon_color=ft.Colors.RED, on_click=delete_person),
                     ft.TextButton("إغلاق", on_click=lambda e: page.close(dlg_details))
                 ]
             )
@@ -383,12 +383,12 @@ def main(page: ft.Page):
                                 content=ft.Column([
                                     ft.Row([
                                         ft.Text(f"{name}", weight=ft.FontWeight.BOLD, size=16, color=ft.colors.INDIGO_900),
-                                        ft.Text(f"({nickname or 'بدون لقب'})", size=12, color=ft.colors.GREY_600),
+                                        ft.Text(f"({nickname or 'بدون لقب'})", size=12, color=ft.Colors.GREY_600),
                                     ], alignment=ft.MainAxisAlignment.START),
                                     ft.Divider(height=1, color=ft.colors.GREY_200),
                                     ft.Row([
                                         ft.Text(status_text, weight=ft.FontWeight.BOLD, color=status_color),
-                                        ft.Text(f"جالي: {p_in:,.0f} | دفعت: {p_out:,.0f}", size=11, color=ft.colors.GREY_500),
+                                        ft.Text(f"جالي: {p_in:,.0f} | دفعت: {p_out:,.0f}", size=11, color=ft.Colors.GREY_500),
                                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                                     ft.Row([
                                         ft.TextButton(
@@ -407,34 +407,34 @@ def main(page: ft.Page):
 
         dashboard_card = ft.Card(
             elevation=4,
-            color=ft.colors.WHITE,
+            color=ft.Colors.WHITE,
             content=ft.Container(
                 padding=20,
                 content=ft.Column([
                     ft.Row([
-                        ft.Icon(ft.icons.DASHBOARD, color=ft.colors.INDIGO_700),
-                        ft.Text("لوحة التحكم المالية", size=18, weight=ft.FontWeight.BOLD, color=ft.colors.INDIGO_700),
+                        ft.Icon(ft.icons.DASHBOARD, color=ft.Colors.INDIGO_700),
+                        ft.Text("لوحة التحكم المالية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700),
                     ]),
-                    ft.Divider(color=ft.colors.INDIGO_100),
-                    ft.Row([ft.Text("إجمالي ما لي (الوارد):", color=ft.colors.GREY_700), lbl_total_in], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Row([ft.Text("إجمالي ما عليّ (الصادر):", color=ft.colors.GREY_700), lbl_total_out], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ft.Divider(color=ft.colors.INDIGO_100),
-                    ft.Row([ft.Text("الصافي العام:", weight=ft.FontWeight.BOLD, color=ft.colors.INDIGO_900), lbl_net], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(color=ft.Colors.INDIGO_100),
+                    ft.Row([ft.Text("إجمالي ما لي (الوارد):", color=ft.Colors.GREY_700), lbl_total_in], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Row([ft.Text("إجمالي ما عليّ (الصادر):", color=ft.Colors.GREY_700), lbl_total_out], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(color=ft.Colors.INDIGO_100),
+                    ft.Row([ft.Text("الصافي العام:", weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900), lbl_net], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 ])
             )
         )
 
         form_card = ft.Card(
             elevation=4,
-            color=ft.colors.WHITE,
+            color=ft.Colors.WHITE,
             content=ft.Container(
                 padding=20,
                 content=ft.Column([
                     ft.Row([
-                        ft.Icon(ft.icons.POST_ADD, color=ft.colors.INDIGO_700),
-                        ft.Text("تسجيل نقطة جديدة", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.INDIGO_700),
+                        ft.Icon(ft.icons.POST_ADD, color=ft.Colors.INDIGO_700),
+                        ft.Text("تسجيل نقطة جديدة", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700),
                     ]),
-                    ft.Divider(color=ft.colors.INDIGO_100),
+                    ft.Divider(color=ft.Colors.INDIGO_100),
                     txt_name,
                     txt_nickname,
                     txt_amount,
@@ -446,8 +446,8 @@ def main(page: ft.Page):
                         "حفظ النقطة", 
                         icon=ft.icons.SAVE,
                         on_click=add_transaction, 
-                        bgcolor=ft.colors.INDIGO_700, 
-                        color=ft.colors.WHITE,
+                        bgcolor=ft.Colors.INDIGO_700, 
+                        color=ft.Colors.WHITE,
                         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=15),
                         width=float("inf")
                     ),
@@ -462,10 +462,10 @@ def main(page: ft.Page):
                 padding=20,
                 content=ft.Column([
                     ft.Row([
-                        ft.Icon(ft.icons.SEARCH, color=ft.colors.INDIGO_700),
-                        ft.Text("البحث وكشف الحسابات", size=16, weight=ft.FontWeight.BOLD, color=ft.colors.INDIGO_700),
+                        ft.Icon(ft.icons.SEARCH, color=ft.Colors.INDIGO_700),
+                        ft.Text("البحث وكشف الحسابات", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_700),
                     ]),
-                    ft.Divider(color=ft.colors.INDIGO_100),
+                    ft.Divider(color=ft.Colors.INDIGO_100),
                     txt_search,
                     ft.Container(height=10),
                     ft.Container(content=results_list, height=300)
