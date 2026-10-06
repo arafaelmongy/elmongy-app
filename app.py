@@ -103,7 +103,7 @@ def main(page: ft.Page):
                     ft.Divider(color=ft.colors.INDIGO_100),
                     txt_user,
                     txt_pass,
-                    ft.SizedBox(height: 10),
+                    ft.SizedBox(height=10),
                     ft.ElevatedButton(
                         "دخول",
                         icon=ft.icons.LOGIN,
@@ -447,7 +447,7 @@ def main(page: ft.Page):
                     dropdown_type,
                     txt_event,
                     txt_notes,
-                    ft.SizedBox(height: 5),
+                    ft.SizedBox(height=5),
                     ft.ElevatedButton(
                         "حفظ النقطة", 
                         icon=ft.icons.SAVE,
@@ -473,7 +473,7 @@ def main(page: ft.Page):
                     ]),
                     ft.Divider(color=ft.colors.INDIGO_100),
                     txt_search,
-                    ft.SizedBox(height: 10),
+                    ft.SizedBox(height=10),
                     ft.Container(content=results_list, height=300)
                 ], spacing=10)
             )
