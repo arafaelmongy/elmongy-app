@@ -505,4 +505,5 @@ def main(page: ft.Page):
     show_login_screen()
 
 if __name__ == "__main__":
-    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=int(os.environ.get("PORT", 8080)))
+    # للتشغيل على Render باستخدام المنفذ (PORT) المخصص
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=int(os.environ.get("PORT", 8080)), host="0.0.0.0")
