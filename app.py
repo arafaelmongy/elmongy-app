@@ -1,5 +1,5 @@
 import os
-import psycopg2
+import psycopg
 import flet as ft
 
 # --- 1. إعداد قاعدة البيانات السحابية (Supabase) ---
@@ -10,7 +10,7 @@ DB_URL = os.environ.get(
 )
 
 def get_db_connection():
-    return psycopg2.connect(DB_URL)
+    return psycopg.connect(DB_URL)
 
 def init_db():
     conn = get_db_connection()
