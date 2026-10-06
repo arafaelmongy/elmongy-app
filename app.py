@@ -1,8 +1,7 @@
 import os
 import psycopg
 import flet as ft
-from fpdf import FPDF
-import tempfile
+import urllib.parse
 
 # --- 1. إعداد قاعدة البيانات السحابية (Supabase) ---
 DB_URL = os.environ.get(
@@ -61,9 +60,6 @@ def main(page: ft.Page):
     page.bgcolor = ft.Colors.GREY_50
 
     current_user = {"username": "", "role": ""}
-
-    file_picker = ft.FilePicker()
-    page.overlay.append(file_picker)
 
     def show_login_screen():
         page.clean()
@@ -385,45 +381,19 @@ def main(page: ft.Page):
 
         def export_pdf_direct(e):
             try:
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", "B", 12)
-                
-                pdf.cell(200, 10, txt="Financial Report - Elmongy App", ln=True, align="C")
-                pdf.ln(10)
-                
-                pdf.set_font("Arial", "", 10)
+                # إنشاء تقرير نصي منسق بالكامل يدعم العربية بشكل كامل ويفتح في المتصفح للطباعة أو الحفظ كـ PDF
+                report_content = f"--- {title_text} ---\n\n"
                 for r in rows_data:
                     p_name, p_nick, amount, event_n, notes = r
-                    safe_name = str(p_name).encode('latin-1', 'replace').decode('latin-1')
-                    safe_nick = str(p_nick or '-').encode('latin-1', 'replace').decode('latin-1')
-                    safe_event = str(event_n or '-').encode('latin-1', 'replace').decode('latin-1')
-                    
-                    line_text = f"Name: {safe_name} | Nick: {safe_nick} | Amount: {amount} LE | Event: {safe_event}"
-                    pdf.cell(200, 8, txt=line_text, ln=True)
+                    report_content += f"الاسم: {p_name} | الشهرة: {p_nick or '-'} | المبلغ: {amount} ج.م | المناسبة: {event_n or '-'}\n"
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    pdf.output(tmp.name)
-                    tmp_path = tmp.name
-
-                with open(tmp_path, "rb") as f:
-                    pdf_bytes = f.read()
-
-                def on_file_picked(e: ft.FilePickerResultEvent):
-                    if e.path:
-                        with open(e.path, "wb") as f:
-                            f.write(pdf_bytes)
-                        page.open(ft.SnackBar(ft.Text("تم تحميل وحفظ الملف بنجاح على جهازك! 📂"), bgcolor=ft.Colors.GREEN_600))
-
-                file_picker.on_result = on_file_picked
-
-                file_picker.save_file(
-                    dialog_title="حفظ تقرير الـ PDF",
-                    file_name="Financial_Report.pdf",
-                    allowed_extensions=["pdf"]
-                )
+                encoded_text = urllib.parse.quote(report_content)
+                data_url = f"data:text/plain;charset=utf-8,{encoded_text}"
+                
+                page.launch_url(data_url)
+                page.open(ft.SnackBar(ft.Text("تم فتح تقرير البيانات بنجاح، يمكنك حفظه أو طباعته كـ PDF! 📄"), bgcolor=ft.Colors.GREEN_600))
             except Exception as ex:
-                page.open(ft.SnackBar(ft.Text(f"خطأ أثناء تجهيز الـ PDF: {ex}"), bgcolor=ft.Colors.RED_400))
+                page.open(ft.SnackBar(ft.Text(f"خطأ أثناء تجهيز التقرير: {ex}"), bgcolor=ft.Colors.RED_400))
 
         page.views.clear()
         page.views.append(
