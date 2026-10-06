@@ -409,12 +409,6 @@ def main(page: ft.Page):
                 with open(tmp_path, "rb") as f:
                     pdf_bytes = f.read()
 
-                file_picker.save_file(
-                    dialog_title="حفظ تقرير الـ PDF",
-                    file_name="Financial_Report.pdf",
-                    allowed_extensions=["pdf"]
-                )
-                
                 def on_file_picked(e: ft.FilePickerResultEvent):
                     if e.path:
                         with open(e.path, "wb") as f:
@@ -423,6 +417,11 @@ def main(page: ft.Page):
 
                 file_picker.on_result = on_file_picked
 
+                file_picker.save_file(
+                    dialog_title="حفظ تقرير الـ PDF",
+                    file_name="Financial_Report.pdf",
+                    allowed_extensions=["pdf"]
+                )
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text(f"خطأ أثناء تجهيز الـ PDF: {ex}"), bgcolor=ft.Colors.RED_400))
 
@@ -515,6 +514,8 @@ def main(page: ft.Page):
             t_amount_box = ft.TextField(label="المبلغ", keyboard_type=ft.KeyboardType.NUMBER, filled=True)
             t_event_box = ft.TextField(label="المناسبة", filled=True)
             
+            dlg_quick = ft.AlertDialog()
+
             def save_quick(ev):
                 try:
                     amt = float(t_amount_box.value)
@@ -528,14 +529,12 @@ def main(page: ft.Page):
                 except Exception as ex:
                     page.open(ft.SnackBar(ft.Text(f"خطأ: {ex}"), bgcolor=ft.Colors.RED_400))
 
-            dlg_quick = ft.AlertDialog(
-                title=ft.Text(f"تسجيل {'وارد' if ttype=='IN' else 'صادر'} لـ {pname}"),
-                content=ft.Column([t_amount_box, t_event_box], tight=True),
-                actions=[
-                    ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_quick)),
-                    ft.ElevatedButton("حفظ وتعديل الرصيد", on_click=save_quick, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
-                ]
-            )
+            dlg_quick.title = ft.Text(f"تسجيل {'وارد' if ttype=='IN' else 'صادر'} لـ {pname}")
+            dlg_quick.content = ft.Column([t_amount_box, t_event_box], tight=True)
+            dlg_quick.actions = [
+                ft.TextButton("إلغاء", on_click=lambda ev: page.close(dlg_quick)),
+                ft.ElevatedButton("حفظ وتعديل الرصيد", on_click=save_quick, bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+            ]
             page.open(dlg_quick)
 
         execute_search(None)
@@ -586,6 +585,9 @@ def main(page: ft.Page):
                         ]
                     )
 
+                    def make_user_saver(uid, up, rd):
+                        return lambda ev: save_user_changes(uid, up.value, rd.value)
+
                     users_list_col.controls.append(
                         ft.Card(
                             content=ft.Container(
@@ -594,7 +596,7 @@ def main(page: ft.Page):
                                     ft.Text(f"المستخدم: {uname}", weight=ft.FontWeight.BOLD, color=ft.Colors.INDIGO_900),
                                     u_pass_field,
                                     r_dropdown,
-                                    ft.ElevatedButton("حفظ التعديل", icon=ft.icons.SAVE, on_click=lambda ev, uid=u_id, up=u_pass_field, rd=r_dropdown: save_user_changes(uid, up.value, rd.value), bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
+                                    ft.ElevatedButton("حفظ التعديل", icon=ft.icons.SAVE, on_click=make_user_saver(u_id, u_pass_field, r_dropdown), bgcolor=ft.Colors.INDIGO_700, color=ft.Colors.WHITE)
                                 ], spacing=5)
                             )
                         )
@@ -632,6 +634,8 @@ def main(page: ft.Page):
             value="read_only"
         )
 
+        dlg_users = ft.AlertDialog()
+
         def save_new_user(ev):
             if not new_u.value or not new_p.value:
                 page.open(ft.SnackBar(ft.Text("يرجى إدخال اسم المستخدم وكلمة المرور!"), bgcolor=ft.Colors.RED_400))
@@ -649,23 +653,22 @@ def main(page: ft.Page):
             except Exception as ex:
                 page.open(ft.SnackBar(ft.Text(f"خطأ (ربما الاسم موجود مسبقاً): {ex}"), bgcolor=ft.Colors.RED_400))
 
-        dlg_users = ft.AlertDialog(
-            title=ft.Text("إدارة المستخدمين والصلاحيات"),
-            content=ft.Column([
-                ft.Text("إضافة مستخدم جديد:", weight=ft.FontWeight.BOLD),
-                new_u,
-                new_p,
-                new_role,
-                ft.ElevatedButton("إضافة المستخدم", icon=ft.icons.PERSON_ADD, on_click=save_new_user, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
-                ft.Divider(),
-                ft.Text("قائمة المستخدمين الحاليين:", weight=ft.FontWeight.BOLD),
-                txt_user_search,
-                ft.Container(content=users_list_col, expand=True)
-            ], tight=False, width=400, height=500),
-            actions=[
-                ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_users))
-            ]
-        )
+        dlg_users.title = ft.Text("إدارة المستخدمين والصلاحيات")
+        dlg_users.content = ft.Column([
+            ft.Text("إضافة مستخدم جديد:", weight=ft.FontWeight.BOLD),
+            new_u,
+            new_p,
+            new_role,
+            ft.ElevatedButton("إضافة المستخدم", icon=ft.icons.PERSON_ADD, on_click=save_new_user, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+            ft.Divider(),
+            ft.Text("قائمة المستخدمين الحاليين:", weight=ft.FontWeight.BOLD),
+            txt_user_search,
+            ft.Container(content=users_list_col, expand=True)
+        ], tight=False, width=400, height=500)
+        dlg_users.actions = [
+            ft.TextButton("إغلاق", on_click=lambda ev: page.close(dlg_users))
+        ]
+        
         page.open(dlg_users)
 
     # تشغيل شاشة تسجيل الدخول عند البدء
