@@ -135,7 +135,7 @@ def main(page: ft.Page):
         page.clean()
         
         page.appbar = ft.AppBar(
-            title=ft.Text(f"برنامج النقطة والواجب ({current_user['username']} - {current_user['role']})", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
+            title=ft.Text(f"نقطتي المنجي ({current_user['username']} - {current_user['role']})", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
             center_title=True,
             bgcolor=ft.Colors.INDIGO_700,
             actions=[
@@ -280,7 +280,7 @@ def main(page: ft.Page):
         txt_name = ft.TextField(label="الاسم الكامل", filled=True, border_radius=10, prefix_icon=ft.icons.PERSON)
         txt_nickname = ft.TextField(label="اسم الشهرة", filled=True, border_radius=10, prefix_icon=ft.icons.TAG)
         txt_amount = ft.TextField(label="المبلغ (ج.م)", keyboard_type=ft.KeyboardType.NUMBER, filled=True, border_radius=10, prefix_icon=ft.icons.MONETIZATION_ON)
-        txt_event = ft.TextField(label="المناسبة (مثال: فرح / مناسبة)", filled=True, border_radius=10, prefix_icon=ft.icons.EVENT)
+        txt_event = ft.TextField(label="المناسبة", filled=True, border_radius=10, prefix_icon=ft.icons.EVENT)
         txt_notes = ft.TextField(label="ملاحظات إضافية", multiline=True, min_lines=2, max_lines=4, filled=True, border_radius=10, prefix_icon=ft.icons.NOTE)
 
         def save_trans(e):
